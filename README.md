@@ -45,6 +45,25 @@ llm = Recorder(call_openai, mode="replay")   # deterministic re-run, zero API ca
 llm = Recorder(call_openai, mode="auto")     # replay on hit, record on miss
 ```
 
+Or use the drop-in provider wrappers — same call shape as the SDKs:
+
+```python
+from agentlens.providers import OpenAIChat, AnthropicMessages
+
+llm = OpenAIChat(OpenAI(), mode="auto")
+resp = llm.create(model="gpt-4o", messages=[...])       # traced + replayable
+
+llm = AnthropicMessages(Anthropic(), mode="auto")
+resp = llm.create(model="claude-sonnet-5", max_tokens=1024, messages=[...])
+```
+
+Requests containing volatile fields (timestamps, request ids) can be normalized before
+fingerprinting with `Recorder(..., canonicalize=strip_volatile)` so they still replay.
+
+Async agents are supported throughout: `@al.traced` works on `async def` functions
+(context propagates through awaits and `asyncio.gather`), and `Recorder.acall` is the
+awaitable variant for async provider clients.
+
 ## Diff
 
 ```

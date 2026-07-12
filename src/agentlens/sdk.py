@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextvars
 import functools
+import inspect
 from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
@@ -94,9 +95,26 @@ def span(
 
 
 def traced(name: str | None = None, kind: SpanKind | str = SpanKind.SPAN):
-    """Decorator: record a function call as a span, capturing args and return value."""
+    """Decorator: record a function call as a span, capturing args and return value.
+
+    Works on both sync and async functions; context propagates through awaits
+    because trace state lives in contextvars.
+    """
 
     def decorator(fn):
+        if inspect.iscoroutinefunction(fn):
+
+            @functools.wraps(fn)
+            async def awrapper(*args, **kwargs):
+                with span(
+                    name or fn.__name__, kind=kind, input={"args": args, "kwargs": kwargs}
+                ) as s:
+                    result = await fn(*args, **kwargs)
+                    s.output = result
+                    return result
+
+            return awrapper
+
         @functools.wraps(fn)
         def wrapper(*args, **kwargs):
             with span(name or fn.__name__, kind=kind, input={"args": args, "kwargs": kwargs}) as s:
