@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+
+## 0.2.2 — 2026-07-12
 - Privacy controls: opt-in `RedactionPolicy` recursively removes common credential fields and
   token formats before trace payloads, metadata, and replay-cache entries reach SQLite.
 - Package metadata/docs: PyPI-compatible absolute demo image URL and version 0.2.1 release.
