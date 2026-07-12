@@ -15,8 +15,8 @@ what happened and **compare** runs structurally.
 ## Install
 
 ```bash
-pip install agentrewind            # core (stdlib-only)
-pip install 'agentrewind[server]'  # + web trace viewer
+pip install llm-run-recorder            # core (stdlib-only)
+pip install 'llm-run-recorder[server]'  # + web trace viewer
 ```
 
 ## Trace
