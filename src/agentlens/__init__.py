@@ -2,7 +2,7 @@
 
 from .diff import Divergence, diff_traces, format_divergences
 from .models import Span, SpanKind, Status, Trace
-from .providers import AnthropicMessages, OpenAIChat
+from .providers import AnthropicMessages, OpenAIChat, instrument
 from .replay import Recorder, ReplayMissError, fingerprint
 from .sdk import (
     configure,
@@ -16,7 +16,7 @@ from .sdk import (
 )
 from .store import TraceStore
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "AnthropicMessages",
@@ -36,6 +36,7 @@ __all__ = [
     "fingerprint",
     "format_divergences",
     "get_store",
+    "instrument",
     "record_llm_call",
     "span",
     "trace",

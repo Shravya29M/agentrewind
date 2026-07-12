@@ -1,8 +1,12 @@
 # AgentLens
 
+[![CI](https://github.com/Shravya29M/agentlens/actions/workflows/ci.yml/badge.svg)](https://github.com/Shravya29M/agentlens/actions/workflows/ci.yml)
+
 **Flight recorder for LLM agents.** Trace every LLM and tool call an agent makes, replay a
 run deterministically (no API calls, no cost, no nondeterminism), and diff two runs to find
 exactly where their behavior diverged.
+
+![demo: recording two agent runs and diffing them](docs/demo.gif)
 
 *"It worked yesterday — why is it different today?"* is the defining debugging problem of
 agent development. Tracing tools show you what happened; AgentLens also lets you **re-execute**
@@ -45,17 +49,20 @@ llm = Recorder(call_openai, mode="replay")   # deterministic re-run, zero API ca
 llm = Recorder(call_openai, mode="auto")     # replay on hit, record on miss
 ```
 
-Or use the drop-in provider wrappers — same call shape as the SDKs:
+Or instrument an SDK client in place — existing code keeps calling it exactly as before:
 
 ```python
-from agentlens.providers import OpenAIChat, AnthropicMessages
+import agentlens as al
 
-llm = OpenAIChat(OpenAI(), mode="auto")
-resp = llm.create(model="gpt-4o", messages=[...])       # traced + replayable
-
-llm = AnthropicMessages(Anthropic(), mode="auto")
-resp = llm.create(model="claude-sonnet-5", max_tokens=1024, messages=[...])
+client = al.instrument(OpenAI(), mode="auto")       # or Anthropic()
+client.chat.completions.create(model="gpt-4o", messages=[...])  # traced + replayable
 ```
+
+(Prefer explicit wrappers? `agentlens.providers.OpenAIChat` / `AnthropicMessages` do the
+same without monkey-patching.)
+
+Streaming is captured too: `Recorder.call_stream` / `acall_stream` pass chunks through
+live while recording them, and replay re-streams the identical chunks offline.
 
 Requests containing volatile fields (timestamps, request ids) can be normalized before
 fingerprinting with `Recorder(..., canonicalize=strip_volatile)` so they still replay.
@@ -87,6 +94,9 @@ agentlens show <trace-id>      # span tree with latencies
 agentlens diff <run1> <run2>   # structural diff (exit code 2 if runs differ)
 agentlens serve                # web viewer at http://127.0.0.1:4317
 ```
+
+The web viewer shows the span waterfall per run, and lets you select any two runs to see
+a side-by-side divergence view (`/api/diff/{a}/{b}` for programmatic access).
 
 ## Try the demo (offline, no API key)
 

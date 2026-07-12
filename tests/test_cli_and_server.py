@@ -51,3 +51,22 @@ def test_server_endpoints():
     assert detail["spans"][0]["name"] == "search"
 
     assert client.get("/api/traces/does-not-exist").status_code == 404
+
+
+def test_server_diff_endpoint():
+    from fastapi.testclient import TestClient
+
+    from agentlens.server import create_app
+
+    a, b = make_run("sunny"), make_run("rainy")
+    client = TestClient(create_app())
+
+    d = client.get(f"/api/diff/{a.trace_id}/{b.trace_id}").json()
+    assert d["identical"] is False
+    assert d["divergences"][0]["kind"] == "output"
+    assert d["divergences"][0]["left"] == {"answer": "sunny"}
+
+    same = client.get(f"/api/diff/{a.trace_id}/{a.trace_id}").json()
+    assert same["identical"] is True
+
+    assert client.get(f"/api/diff/{a.trace_id}/missing").status_code == 404

@@ -67,3 +67,34 @@ class AnthropicMessages:
 
     def create(self, **request: Any) -> dict:
         return self._recorder.call(request)
+
+
+def instrument(client: Any, mode: str = "auto", store: TraceStore | None = None) -> Any:
+    """Patch an OpenAI or Anthropic client in place so every completion call is
+    traced and replayable, then return it. Detects the client shape:
+
+        client = instrument(OpenAI())        # patches chat.completions.create
+        client = instrument(Anthropic())     # patches messages.create
+
+    Existing code keeps calling the SDK exactly as before; responses come back
+    as plain dicts.
+    """
+    if hasattr(client, "chat") and hasattr(client.chat, "completions"):
+        target, attr = client.chat.completions, "create"
+        original = getattr(target, attr)
+        recorder = Recorder(lambda req: _to_dict(original(**req)), mode=mode, store=store)
+    elif hasattr(client, "messages") and hasattr(client.messages, "create"):
+        target, attr = client.messages, "create"
+        original = getattr(target, attr)
+        recorder = Recorder(
+            lambda req: _anthropic_usage_to_openai(_to_dict(original(**req))),
+            mode=mode,
+            store=store,
+        )
+    else:
+        raise TypeError(
+            "instrument() expects an OpenAI-shaped (chat.completions.create) or "
+            f"Anthropic-shaped (messages.create) client, got {type(client).__name__}"
+        )
+    setattr(target, attr, lambda **request: recorder.call(request))
+    return client

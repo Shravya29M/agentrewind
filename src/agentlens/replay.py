@@ -85,3 +85,50 @@ class Recorder:
         if cached is not None:
             return self._finish(fp, request, cached, replayed=True)
         return self._finish(fp, request, await self.call_fn(request), replayed=False)
+
+    def call_stream(self, request: dict[str, Any]):
+        """Streaming variant: call_fn must return an iterable of chunk dicts.
+
+        Chunks are yielded through unchanged while being captured; on completion
+        the full chunk list is cached, so replay re-streams the identical chunks
+        (instantly and offline). The trace span stores the chunk list as output.
+        """
+        fp, cached = self._lookup(request)
+        if cached is not None:
+            chunks = cached["chunks"]
+            yield from chunks
+            self._finish_stream(fp, request, chunks, replayed=True)
+            return
+        chunks = []
+        for chunk in self.call_fn(request):
+            chunks.append(chunk)
+            yield chunk
+        self._finish_stream(fp, request, chunks, replayed=False)
+
+    async def acall_stream(self, request: dict[str, Any]):
+        """Async streaming variant: call_fn must return an async iterable of chunks."""
+        fp, cached = self._lookup(request)
+        if cached is not None:
+            chunks = cached["chunks"]
+            for chunk in chunks:
+                yield chunk
+            self._finish_stream(fp, request, chunks, replayed=True)
+            return
+        chunks = []
+        async for chunk in self.call_fn(request):
+            chunks.append(chunk)
+            yield chunk
+        self._finish_stream(fp, request, chunks, replayed=False)
+
+    def _finish_stream(
+        self, fp: str, request: dict[str, Any], chunks: list, replayed: bool
+    ) -> None:
+        # Usage, when present, arrives on the final chunk (OpenAI stream_options
+        # / Anthropic message_delta convention).
+        usage = {}
+        for chunk in reversed(chunks):
+            if isinstance(chunk, dict) and isinstance(chunk.get("usage"), dict):
+                usage = chunk["usage"]
+                break
+        response = {"chunks": chunks, "usage": usage} if usage else {"chunks": chunks}
+        self._finish(fp, request, response, replayed=replayed)
