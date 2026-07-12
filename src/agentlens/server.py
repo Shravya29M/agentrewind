@@ -1,0 +1,103 @@
+"""FastAPI server: JSON API plus a minimal built-in trace viewer."""
+
+from __future__ import annotations
+
+from .models import Span, Trace
+from .sdk import get_store
+
+
+def _span_json(s: Span) -> dict:
+    return {
+        "span_id": s.span_id,
+        "parent_id": s.parent_id,
+        "name": s.name,
+        "kind": s.kind.value,
+        "status": s.status.value,
+        "error": s.error,
+        "started_at": s.started_at,
+        "duration_ms": s.duration_ms,
+        "input": s.input,
+        "output": s.output,
+        "attributes": s.attributes,
+    }
+
+
+def _trace_json(t: Trace, with_spans: bool = False) -> dict:
+    d = {
+        "trace_id": t.trace_id,
+        "name": t.name,
+        "status": t.status.value,
+        "started_at": t.started_at,
+        "ended_at": t.ended_at,
+        "num_spans": len(t.spans),
+        "tokens": t.total_tokens(),
+        "metadata": t.metadata,
+    }
+    if with_spans:
+        d["spans"] = [_span_json(s) for s in t.spans]
+    return d
+
+
+_INDEX_HTML = """<!doctype html>
+<meta charset="utf-8"><title>AgentLens</title>
+<style>
+ body{font:14px/1.5 -apple-system,system-ui,sans-serif;max-width:960px;margin:2rem auto;padding:0 1rem;color:#1a1a2e}
+ h1{font-size:1.3rem} table{border-collapse:collapse;width:100%}
+ td,th{padding:.4rem .6rem;border-bottom:1px solid #e2e2ef;text-align:left}
+ a{color:#4c4cd8;text-decoration:none} .err{color:#c0392b}
+ pre{background:#f4f4fb;padding:.6rem;overflow-x:auto;border-radius:6px}
+ .span{margin-left:calc(var(--d)*1.4rem);border-left:3px solid #ccd;padding:.3rem .6rem;margin-bottom:.3rem;background:#fafaff}
+ .kind{font-size:.75rem;background:#e6e6f7;border-radius:4px;padding:0 .4rem;margin-right:.4rem}
+</style>
+<h1>AgentLens — traces</h1><div id="app">loading…</div>
+<script>
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+async function list(){
+  const traces = await (await fetch('/api/traces')).json();
+  document.getElementById('app').innerHTML = '<table><tr><th>trace</th><th>name</th><th>status</th><th>spans</th><th>tokens</th></tr>'
+    + traces.map(t=>`<tr><td><a href="#${t.trace_id}">${t.trace_id.slice(0,8)}</a></td><td>${esc(t.name)}</td>`
+    + `<td class="${t.status==='error'?'err':''}">${t.status}</td><td>${t.num_spans}</td>`
+    + `<td>${t.tokens.prompt_tokens}+${t.tokens.completion_tokens}</td></tr>`).join('') + '</table>';
+}
+async function show(id){
+  const t = await (await fetch('/api/traces/'+id)).json();
+  const byParent = {};
+  t.spans.forEach(s=>{(byParent[s.parent_id||'root'] ||= []).push(s)});
+  const render = (pid,d)=> (byParent[pid]||[]).map(s=>
+    `<div class="span" style="--d:${d}"><span class="kind">${s.kind}</span><b>${esc(s.name)}</b>
+     ${s.duration_ms!=null?Math.round(s.duration_ms)+'ms':''} ${s.error?`<span class="err">${esc(s.error)}</span>`:''}
+     <pre>in: ${esc(JSON.stringify(s.input))}\nout: ${esc(JSON.stringify(s.output))}</pre></div>`
+    + render(s.span_id,d+1)).join('');
+  document.getElementById('app').innerHTML =
+    `<p><a href="#">&larr; all traces</a></p><h2>${esc(t.name)} <small>${t.trace_id}</small></h2>` + render('root',0);
+}
+const route = ()=> location.hash.length>1 ? show(location.hash.slice(1)) : list();
+addEventListener('hashchange', route); route();
+</script>"""
+
+
+def create_app():
+    from fastapi import FastAPI, HTTPException
+    from fastapi.responses import HTMLResponse
+
+    app = FastAPI(title="AgentLens")
+
+    @app.get("/", response_class=HTMLResponse)
+    def index() -> str:
+        return _INDEX_HTML
+
+    @app.get("/api/traces")
+    def list_traces(limit: int = 50) -> list[dict]:
+        store = get_store()
+        # list_traces returns headers only; reload each trace so span counts
+        # and token rollups are populated. Fine at local-tool scale.
+        return [_trace_json(store.get_trace(t.trace_id)) for t in store.list_traces(limit)]
+
+    @app.get("/api/traces/{trace_id}")
+    def get_trace(trace_id: str) -> dict:
+        t = get_store().get_trace(trace_id)
+        if t is None:
+            raise HTTPException(404, f"trace {trace_id} not found")
+        return _trace_json(t, with_spans=True)
+
+    return app
