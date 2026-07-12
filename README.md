@@ -6,7 +6,7 @@
 run deterministically (no API calls, no cost, no nondeterminism), and diff two runs to find
 exactly where their behavior diverged.
 
-![demo: recording two agent runs and diffing them](docs/demo.gif)
+![demo: recording two agent runs and diffing them](https://raw.githubusercontent.com/Shravya29M/agentrewind/main/docs/demo.gif)
 
 *"It worked yesterday — why is it different today?"* is the defining debugging problem of
 agent development. Tracing tools show you what happened; AgentRewind also lets you **re-execute**
@@ -35,6 +35,21 @@ with al.trace("research-agent"):
 
 Traces (span tree, inputs/outputs, latency, token counts, errors) are stored in a local
 SQLite db at `~/.agentrewind/traces.db` — no account, no server required.
+
+### Sensitive-data controls
+
+For production traffic, opt into recursive persistence-time redaction. It removes common
+credential fields (`api_key`, `authorization`, `password`, `secret`, and `token`) and common
+token formats from trace metadata, span payloads, and the local replay cache:
+
+```python
+import agentrewind as al
+
+al.configure(redaction=al.RedactionPolicy())
+```
+
+Redaction intentionally also applies to cached responses, so use it where protecting local
+data matters more than replaying the original secret verbatim.
 
 ## Replay
 
@@ -93,6 +108,8 @@ agentrewind list                 # recent runs
 agentrewind show <trace-id>      # span tree with latencies
 agentrewind diff <run1> <run2>   # structural diff (exit code 2 if runs differ)
 agentrewind serve                # web viewer at http://127.0.0.1:4317
+agentrewind export <trace-id> -o baseline.json  # portable artifact for a bug report or CI fixture
+agentrewind import baseline.json
 ```
 
 The web viewer shows the span waterfall per run, and lets you select any two runs to see
@@ -112,6 +129,18 @@ pip install -e '.[dev]'
 pytest
 ruff check .
 ```
+
+## Reproducible evaluation
+
+The offline benchmark verifies that replay is byte-for-byte faithful and makes zero provider
+calls; it also reports local recording and replay throughput:
+
+```bash
+python benchmarks/replay_benchmark.py --calls 1000
+```
+
+See [the evaluation protocol](docs/EVALUATION.md) for a repeatable benchmark and CI regression
+gate workflow, and [the architecture overview](docs/ARCHITECTURE.md) for implementation details.
 
 Note for macOS: if this repo lives in an iCloud-synced folder (e.g. `~/Documents`), create
 your virtualenv *outside* it (e.g. `~/.venvs/agentrewind`) — the file provider marks files in

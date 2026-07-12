@@ -1,6 +1,6 @@
 # PRD: AgentRewind v1
 
-**Author:** Shravya Munugala · **Date:** July 12, 2026 · **Status:** v1 in development
+**Author:** Shravya Munugala · **Date:** July 12, 2026 · **Status:** v1 shipped; v1.1 in development
 
 ## Problem
 Developers building LLM agents cannot reliably answer "why did this run behave differently
@@ -28,11 +28,17 @@ two runs*. Debugging is manual log-reading.
 4. Structural run diff with execution-ordered divergences (`agentrewind diff`, exit code 2 on
    divergence → usable as a CI regression gate).
 5. CLI + local web viewer.
+6. Async tracing and replay, streaming-token capture, and OpenAI/Anthropic SDK instrumentation.
 
 ## Out of scope for v1 (explicitly cut)
-Async instrumentation, OpenTelemetry export, hosted dashboard, streaming-token capture,
-auto-instrumentation of openai/anthropic SDKs (v1.1 candidate — highest-requested likely),
-multi-run statistical comparison.
+OpenTelemetry export, hosted dashboard, team access controls, encrypted storage, and multi-run
+statistical comparison.
+
+## v1.1 priorities
+1. Safe local persistence: opt-in recursive redaction for credentials and sensitive payloads.
+2. Evidence of reliability: a reproducible benchmark reporting replay-hit rate, replay fidelity,
+   storage overhead, and tracing latency on multi-step and streaming agents.
+3. CI workflow example: use `agentrewind diff` as a regression gate against a saved baseline.
 
 ## Success metrics (v1, first 60 days after launch)
 - North star: **10 weekly active external users** (proxied by PyPI downloads minus CI + issues/PRs from strangers).

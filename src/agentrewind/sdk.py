@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from typing import Any
 
 from .models import Span, SpanKind, Status, Trace
+from .redaction import RedactionPolicy
 from .store import TraceStore
 
 _current_trace: contextvars.ContextVar[Trace | None] = contextvars.ContextVar(
@@ -21,10 +22,14 @@ _current_span: contextvars.ContextVar[Span | None] = contextvars.ContextVar(
 _store: TraceStore | None = None
 
 
-def configure(store: TraceStore | None = None, db_path: str | None = None) -> TraceStore:
+def configure(
+    store: TraceStore | None = None,
+    db_path: str | None = None,
+    redaction: RedactionPolicy | None = None,
+) -> TraceStore:
     """Set the global store. Called implicitly with defaults on first use."""
     global _store
-    _store = store or TraceStore(db_path)
+    _store = store or TraceStore(db_path, redaction=redaction)
     return _store
 
 

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from datetime import datetime
+from pathlib import Path
 
 from .diff import diff_traces, format_divergences
 from .sdk import get_store
@@ -58,6 +60,31 @@ def cmd_diff(args) -> int:
     return 0 if not divs else 2
 
 
+def cmd_export(args) -> int:
+    artifact = get_store().export_trace(args.trace_id)
+    if artifact is None:
+        print(f"trace {args.trace_id} not found", file=sys.stderr)
+        return 1
+    text = json.dumps(artifact, indent=2, sort_keys=True, default=str) + "\n"
+    if args.output == "-":
+        print(text, end="")
+    else:
+        Path(args.output).write_text(text, encoding="utf-8")
+        print(f"exported {artifact['trace']['trace_id']} to {args.output}")
+    return 0
+
+
+def cmd_import(args) -> int:
+    try:
+        artifact = json.loads(Path(args.input).read_text(encoding="utf-8"))
+        trace = get_store().import_trace(artifact, overwrite=args.overwrite)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"could not import {args.input}: {exc}", file=sys.stderr)
+        return 1
+    print(f"imported {trace.trace_id} ({trace.name})")
+    return 0
+
+
 def cmd_serve(args) -> int:
     try:
         import uvicorn
@@ -92,6 +119,16 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("left")
     p.add_argument("right")
     p.set_defaults(fn=cmd_diff)
+
+    p = sub.add_parser("export", help="write a portable trace JSON artifact")
+    p.add_argument("trace_id")
+    p.add_argument("--output", "-o", default="-", help="artifact path, or - for stdout")
+    p.set_defaults(fn=cmd_export)
+
+    p = sub.add_parser("import", help="load a portable trace JSON artifact")
+    p.add_argument("input", help="artifact JSON path")
+    p.add_argument("--overwrite", action="store_true", help="replace a trace with the same id")
+    p.set_defaults(fn=cmd_import)
 
     p = sub.add_parser("serve", help="start the web viewer")
     p.add_argument("--host", default="127.0.0.1")

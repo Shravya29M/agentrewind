@@ -6,9 +6,12 @@ import json
 import os
 import sqlite3
 import threading
+from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
-from .models import Span, Status, Trace
+from .models import Span, SpanKind, Status, Trace
+from .redaction import RedactionPolicy
 
 DEFAULT_DB = Path(os.environ.get("AGENTREWIND_DB", "~/.agentrewind/traces.db")).expanduser()
 
@@ -46,8 +49,11 @@ CREATE TABLE IF NOT EXISTS llm_cache (
 
 
 class TraceStore:
-    def __init__(self, path: str | Path | None = None):
+    def __init__(
+        self, path: str | Path | None = None, *, redaction: RedactionPolicy | None = None
+    ):
         self.path = Path(path).expanduser() if path else DEFAULT_DB
+        self.redaction = redaction
         if str(self.path) != ":memory:":
             self.path.parent.mkdir(parents=True, exist_ok=True)
         self._local = threading.local()
@@ -74,13 +80,13 @@ class TraceStore:
                     trace.started_at,
                     trace.ended_at,
                     trace.status.value,
-                    json.dumps(trace.metadata, default=str),
+                    json.dumps(self._redact(trace.metadata), default=str),
                 ),
             )
             conn.execute("DELETE FROM spans WHERE trace_id = ?", (trace.trace_id,))
             conn.executemany(
                 "INSERT INTO spans VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                [s.to_row() for s in trace.spans],
+                [self._redacted_span(s).to_row() for s in trace.spans],
             )
 
     def get_trace(self, trace_id: str) -> Trace | None:
@@ -124,6 +130,85 @@ class TraceStore:
             for r in rows
         ]
 
+    def export_trace(self, trace_id: str) -> dict[str, Any] | None:
+        """Return a portable, versioned JSON-safe representation of a trace."""
+        trace = self.get_trace(trace_id)
+        if trace is None:
+            return None
+        return {
+            "format": "agentrewind.trace.v1",
+            "trace": {
+                "trace_id": trace.trace_id,
+                "name": trace.name,
+                "started_at": trace.started_at,
+                "ended_at": trace.ended_at,
+                "status": trace.status.value,
+                "metadata": trace.metadata,
+                "spans": [
+                    {
+                        "span_id": span.span_id,
+                        "trace_id": span.trace_id,
+                        "parent_id": span.parent_id,
+                        "name": span.name,
+                        "kind": span.kind.value,
+                        "started_at": span.started_at,
+                        "ended_at": span.ended_at,
+                        "status": span.status.value,
+                        "error": span.error,
+                        "input": span.input,
+                        "output": span.output,
+                        "attributes": span.attributes,
+                    }
+                    for span in trace.spans
+                ],
+            },
+        }
+
+    def import_trace(self, payload: dict[str, Any], *, overwrite: bool = False) -> Trace:
+        """Validate and save an artifact produced by :meth:`export_trace`."""
+        if payload.get("format") != "agentrewind.trace.v1" or not isinstance(
+            payload.get("trace"), dict
+        ):
+            raise ValueError("not an AgentRewind trace v1 export")
+        data = payload["trace"]
+        required = {"trace_id", "name", "started_at", "status", "metadata", "spans"}
+        if not required <= data.keys() or not isinstance(data["spans"], list):
+            raise ValueError("trace export is missing required fields")
+        if not overwrite and self.get_trace(data["trace_id"]) is not None:
+            raise ValueError(
+                f"trace {data['trace_id']} already exists (pass overwrite=True to replace it)"
+            )
+        try:
+            trace = Trace(
+                trace_id=data["trace_id"],
+                name=data["name"],
+                started_at=data["started_at"],
+                ended_at=data.get("ended_at"),
+                status=Status(data["status"]),
+                metadata=data["metadata"],
+                spans=[
+                    Span(
+                        span_id=span["span_id"],
+                        trace_id=span["trace_id"],
+                        parent_id=span.get("parent_id"),
+                        name=span["name"],
+                        kind=SpanKind(span["kind"]),
+                        started_at=span["started_at"],
+                        ended_at=span.get("ended_at"),
+                        status=Status(span["status"]),
+                        error=span.get("error"),
+                        input=span.get("input"),
+                        output=span.get("output"),
+                        attributes=span.get("attributes", {}),
+                    )
+                    for span in data["spans"]
+                ],
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError(f"invalid trace export: {exc}") from exc
+        self.save_trace(trace)
+        return trace
+
     # -- llm replay cache ----------------------------------------------------
 
     def cache_put(self, fingerprint: str, request: dict, response: dict) -> None:
@@ -134,8 +219,8 @@ class TraceStore:
                 "INSERT OR REPLACE INTO llm_cache VALUES (?,?,?,?)",
                 (
                     fingerprint,
-                    json.dumps(request, default=str),
-                    json.dumps(response, default=str),
+                    json.dumps(self._redact(request), default=str),
+                    json.dumps(self._redact(response), default=str),
                     time.time(),
                 ),
             )
@@ -145,3 +230,17 @@ class TraceStore:
             "SELECT response FROM llm_cache WHERE fingerprint = ?", (fingerprint,)
         ).fetchone()
         return json.loads(row[0]) if row else None
+
+    def _redact(self, value: Any) -> Any:
+        return self.redaction.redact(value) if self.redaction else value
+
+    def _redacted_span(self, span: Span) -> Span:
+        if not self.redaction:
+            return span
+        return replace(
+            span,
+            input=self._redact(span.input),
+            output=self._redact(span.output),
+            attributes=self._redact(span.attributes),
+            error=self._redact(span.error),
+        )
