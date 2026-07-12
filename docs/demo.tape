@@ -9,7 +9,7 @@ Set Theme "Catppuccin Mocha"
 Set TypingSpeed 35ms
 
 Hide
-Type "export PATH=$HOME/.venvs/agentlens/bin:$PATH AGENTLENS_DB=/tmp/agentlens-demo-gif.db && rm -f /tmp/agentlens-demo-gif.db* && clear"
+Type "export PATH=$HOME/.venvs/agentrewind/bin:$PATH AGENTREWIND_DB=/tmp/agentrewind-demo-gif.db && rm -f /tmp/agentrewind-demo-gif.db* && clear"
 Enter
 Show
 
@@ -19,15 +19,15 @@ Type "python examples/research_agent.py"
 Enter
 Sleep 2.5
 
-Type "agentlens list"
+Type "agentrewind list"
 Enter
 Sleep 2
 
 Hide
-Type `ids=$(agentlens list | awk 'NR>1{print $1}' | tail -2 | tr '\n' ' ') && clear`
+Type `ids=$(agentrewind list | awk 'NR>1{print $1}' | tail -2 | tr '\n' ' ') && clear`
 Enter
 Show
 
-Type "agentlens diff $ids"
+Type "agentrewind diff $ids"
 Enter
 Sleep 6

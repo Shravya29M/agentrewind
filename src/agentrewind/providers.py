@@ -1,13 +1,13 @@
 """Drop-in traced wrappers for OpenAI and Anthropic clients.
 
 The wrappers are duck-typed — they call ``client.chat.completions.create`` /
-``client.messages.create`` on whatever client you hand them — so agentlens
+``client.messages.create`` on whatever client you hand them — so agentrewind
 does not depend on either SDK and the wrappers work with mocks in tests.
 
 Usage:
 
     from openai import OpenAI
-    from agentlens.providers import OpenAIChat
+    from agentrewind.providers import OpenAIChat
 
     llm = OpenAIChat(OpenAI(), mode="auto")
     resp = llm.create(model="gpt-4o", messages=[...])   # traced + replayable

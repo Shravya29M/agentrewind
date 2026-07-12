@@ -1,4 +1,4 @@
-"""SQLite-backed trace store. Zero-config: defaults to ~/.agentlens/traces.db."""
+"""SQLite-backed trace store. Zero-config: defaults to ~/.agentrewind/traces.db."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .models import Span, Status, Trace
 
-DEFAULT_DB = Path(os.environ.get("AGENTLENS_DB", "~/.agentlens/traces.db")).expanduser()
+DEFAULT_DB = Path(os.environ.get("AGENTREWIND_DB", "~/.agentrewind/traces.db")).expanduser()
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS traces (

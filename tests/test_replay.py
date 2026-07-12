@@ -1,7 +1,7 @@
 import pytest
 
-import agentlens as al
-from agentlens.replay import Recorder, ReplayMissError, fingerprint
+import agentrewind as al
+from agentrewind.replay import Recorder, ReplayMissError, fingerprint
 
 
 def flaky_provider():

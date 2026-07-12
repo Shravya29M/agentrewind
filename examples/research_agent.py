@@ -1,16 +1,16 @@
-"""Demo: a toy research agent traced with AgentLens, run twice with a seeded
+"""Demo: a toy research agent traced with AgentRewind, run twice with a seeded
 "regression", then diffed to locate exactly where behavior changed.
 
 Uses a mock LLM so it runs offline. Try:
 
     python examples/research_agent.py
-    agentlens list
-    agentlens diff <run1> <run2>
-    agentlens serve   # then open http://127.0.0.1:4317
+    agentrewind list
+    agentrewind diff <run1> <run2>
+    agentrewind serve   # then open http://127.0.0.1:4317
 """
 
-import agentlens as al
-from agentlens.replay import Recorder
+import agentrewind as al
+from agentrewind.replay import Recorder
 
 PLAYBOOK_V1 = {"plan": "search(weather Boston)", "answer": "72F and sunny in Boston."}
 PLAYBOOK_V2 = {"plan": "search(weather Boston MA)", "answer": "72F and sunny in Boston."}
@@ -50,4 +50,4 @@ if __name__ == "__main__":
     run1 = run_agent("research-agent", PLAYBOOK_V1)
     run2 = run_agent("research-agent", PLAYBOOK_V2)  # prompt tweak = seeded regression
     print(f"Recorded two runs:\n  {run1}\n  {run2}\n")
-    print(f"Find where they diverged:\n  agentlens diff {run1} {run2}")
+    print(f"Find where they diverged:\n  agentrewind diff {run1} {run2}")

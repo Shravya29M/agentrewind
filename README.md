@@ -1,6 +1,6 @@
-# AgentLens
+# AgentRewind
 
-[![CI](https://github.com/Shravya29M/agentlens/actions/workflows/ci.yml/badge.svg)](https://github.com/Shravya29M/agentlens/actions/workflows/ci.yml)
+[![CI](https://github.com/Shravya29M/agentrewind/actions/workflows/ci.yml/badge.svg)](https://github.com/Shravya29M/agentrewind/actions/workflows/ci.yml)
 
 **Flight recorder for LLM agents.** Trace every LLM and tool call an agent makes, replay a
 run deterministically (no API calls, no cost, no nondeterminism), and diff two runs to find
@@ -9,20 +9,20 @@ exactly where their behavior diverged.
 ![demo: recording two agent runs and diffing them](docs/demo.gif)
 
 *"It worked yesterday — why is it different today?"* is the defining debugging problem of
-agent development. Tracing tools show you what happened; AgentLens also lets you **re-execute**
+agent development. Tracing tools show you what happened; AgentRewind also lets you **re-execute**
 what happened and **compare** runs structurally.
 
 ## Install
 
 ```bash
-pip install agentlens            # core (stdlib-only)
-pip install 'agentlens[server]'  # + web trace viewer
+pip install agentrewind            # core (stdlib-only)
+pip install 'agentrewind[server]'  # + web trace viewer
 ```
 
 ## Trace
 
 ```python
-import agentlens as al
+import agentrewind as al
 
 @al.traced(kind="tool")
 def search(query: str) -> str:
@@ -34,7 +34,7 @@ with al.trace("research-agent"):
 ```
 
 Traces (span tree, inputs/outputs, latency, token counts, errors) are stored in a local
-SQLite db at `~/.agentlens/traces.db` — no account, no server required.
+SQLite db at `~/.agentrewind/traces.db` — no account, no server required.
 
 ## Replay
 
@@ -42,7 +42,7 @@ Wrap your provider call in a `Recorder`. Responses are cached by a canonical req
 fingerprint; in replay mode the whole agent run re-executes deterministically and offline:
 
 ```python
-from agentlens.replay import Recorder
+from agentrewind.replay import Recorder
 
 llm = Recorder(call_openai, mode="record")   # live run, responses cached
 llm = Recorder(call_openai, mode="replay")   # deterministic re-run, zero API calls
@@ -52,13 +52,13 @@ llm = Recorder(call_openai, mode="auto")     # replay on hit, record on miss
 Or instrument an SDK client in place — existing code keeps calling it exactly as before:
 
 ```python
-import agentlens as al
+import agentrewind as al
 
 client = al.instrument(OpenAI(), mode="auto")       # or Anthropic()
 client.chat.completions.create(model="gpt-4o", messages=[...])  # traced + replayable
 ```
 
-(Prefer explicit wrappers? `agentlens.providers.OpenAIChat` / `AnthropicMessages` do the
+(Prefer explicit wrappers? `agentrewind.providers.OpenAIChat` / `AnthropicMessages` do the
 same without monkey-patching.)
 
 Streaming is captured too: `Recorder.call_stream` / `acall_stream` pass chunks through
@@ -74,7 +74,7 @@ awaitable variant for async provider clients.
 ## Diff
 
 ```
-$ agentlens diff 3f2a91 8c17d0
+$ agentrewind diff 3f2a91 8c17d0
 2 divergence(s); first divergence is where the runs split:
 
 1. [input] /llm:mock-4o — inputs differ
@@ -89,10 +89,10 @@ divergences in execution order — entry #1 is where the runs first split.
 ## CLI & viewer
 
 ```bash
-agentlens list                 # recent runs
-agentlens show <trace-id>      # span tree with latencies
-agentlens diff <run1> <run2>   # structural diff (exit code 2 if runs differ)
-agentlens serve                # web viewer at http://127.0.0.1:4317
+agentrewind list                 # recent runs
+agentrewind show <trace-id>      # span tree with latencies
+agentrewind diff <run1> <run2>   # structural diff (exit code 2 if runs differ)
+agentrewind serve                # web viewer at http://127.0.0.1:4317
 ```
 
 The web viewer shows the span waterfall per run, and lets you select any two runs to see
@@ -102,7 +102,7 @@ a side-by-side divergence view (`/api/diff/{a}/{b}` for programmatic access).
 
 ```bash
 python examples/research_agent.py   # records two runs with a seeded regression
-agentlens diff <run1> <run2>        # pinpoints the prompt change that caused it
+agentrewind diff <run1> <run2>        # pinpoints the prompt change that caused it
 ```
 
 ## Development
@@ -114,7 +114,7 @@ ruff check .
 ```
 
 Note for macOS: if this repo lives in an iCloud-synced folder (e.g. `~/Documents`), create
-your virtualenv *outside* it (e.g. `~/.venvs/agentlens`) — the file provider marks files in
+your virtualenv *outside* it (e.g. `~/.venvs/agentrewind`) — the file provider marks files in
 dot-directories as hidden, and Python ≥3.13 skips hidden `.pth` files, which breaks
 editable installs.
 

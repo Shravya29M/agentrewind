@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "agentlens"
+name = "agentrewind"
 version = "0.2.0"
 description = "Flight recorder for LLM agents: trace every call, replay runs deterministically, diff runs to find where behavior diverged."
 readme = "README.md"
@@ -25,13 +25,13 @@ server = ["fastapi>=0.110", "uvicorn>=0.29"]
 dev = ["pytest>=8.0", "ruff>=0.4", "httpx>=0.27", "fastapi>=0.110", "uvicorn>=0.29"]
 
 [project.scripts]
-agentlens = "agentlens.cli:main"
+agentrewind = "agentrewind.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/Shravya29M/agentlens"
+Homepage = "https://github.com/Shravya29M/agentrewind"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/agentlens"]
+packages = ["src/agentrewind"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -45,4 +45,4 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.ruff.lint.per-file-ignores]
 # server.py embeds the single-file HTML/JS trace viewer as a string
-"src/agentlens/server.py" = ["E501"]
+"src/agentrewind/server.py" = ["E501"]

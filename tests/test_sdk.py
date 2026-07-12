@@ -1,7 +1,7 @@
 import pytest
 
-import agentlens as al
-from agentlens.models import SpanKind, Status
+import agentrewind as al
+from agentrewind.models import SpanKind, Status
 
 
 def test_trace_persists_span_tree(fresh_store):

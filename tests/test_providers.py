@@ -2,8 +2,8 @@
 
 from types import SimpleNamespace
 
-import agentlens as al
-from agentlens.providers import AnthropicMessages, OpenAIChat
+import agentrewind as al
+from agentrewind.providers import AnthropicMessages, OpenAIChat
 
 
 class FakeResponse:

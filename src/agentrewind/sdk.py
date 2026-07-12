@@ -13,10 +13,10 @@ from .models import Span, SpanKind, Status, Trace
 from .store import TraceStore
 
 _current_trace: contextvars.ContextVar[Trace | None] = contextvars.ContextVar(
-    "agentlens_trace", default=None
+    "agentrewind_trace", default=None
 )
 _current_span: contextvars.ContextVar[Span | None] = contextvars.ContextVar(
-    "agentlens_span", default=None
+    "agentrewind_span", default=None
 )
 _store: TraceStore | None = None
 

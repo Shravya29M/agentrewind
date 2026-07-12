@@ -1,4 +1,4 @@
-# PRD: AgentLens v1
+# PRD: AgentRewind v1
 
 **Author:** Shravya Munugala · **Date:** July 12, 2026 · **Status:** v1 in development
 
@@ -25,7 +25,7 @@ two runs*. Debugging is manual log-reading.
 1. Trace SDK: `trace()`, `span()`, `@traced`, `record_llm_call` — stdlib-only core.
 2. Local SQLite store, zero-config.
 3. Record/replay of LLM calls via request fingerprinting (`Recorder`, 3 modes).
-4. Structural run diff with execution-ordered divergences (`agentlens diff`, exit code 2 on
+4. Structural run diff with execution-ordered divergences (`agentrewind diff`, exit code 2 on
    divergence → usable as a CI regression gate).
 5. CLI + local web viewer.
 
@@ -41,7 +41,7 @@ multi-run statistical comparison.
 
 ## Launch plan
 Show HN + r/LocalLLaMA + LinkedIn post, anchored on the demo: *seed a regression in an
-example agent, catch it with `agentlens diff` in one command.*
+example agent, catch it with `agentrewind diff` in one command.*
 
 ## Risks
 - Crowded observability space → differentiate hard on replay+diff, local-first.

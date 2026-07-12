@@ -1,5 +1,5 @@
-import agentlens as al
-from agentlens.cli import main
+import agentrewind as al
+from agentrewind.cli import main
 
 
 def make_run(answer="sunny"):
@@ -36,12 +36,12 @@ def test_cli_diff_exit_codes(capsys):
 def test_server_endpoints():
     from fastapi.testclient import TestClient
 
-    from agentlens.server import create_app
+    from agentrewind.server import create_app
 
     t = make_run()
     client = TestClient(create_app())
 
-    assert "AgentLens" in client.get("/").text
+    assert "AgentRewind" in client.get("/").text
 
     traces = client.get("/api/traces").json()
     assert traces[0]["trace_id"] == t.trace_id
@@ -56,7 +56,7 @@ def test_server_endpoints():
 def test_server_diff_endpoint():
     from fastapi.testclient import TestClient
 
-    from agentlens.server import create_app
+    from agentrewind.server import create_app
 
     a, b = make_run("sunny"), make_run("rainy")
     client = TestClient(create_app())

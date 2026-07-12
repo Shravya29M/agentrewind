@@ -1,7 +1,7 @@
 import asyncio
 
-import agentlens as al
-from agentlens.replay import Recorder
+import agentrewind as al
+from agentrewind.replay import Recorder
 
 CHUNKS = [
     {"delta": "Hel"},

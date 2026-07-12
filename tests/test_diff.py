@@ -1,5 +1,5 @@
-import agentlens as al
-from agentlens.diff import diff_traces, format_divergences
+import agentrewind as al
+from agentrewind.diff import diff_traces, format_divergences
 
 
 def run_agent(tool_answer: str, extra_step: bool = False):

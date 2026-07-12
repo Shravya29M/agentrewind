@@ -39,7 +39,7 @@ def _trace_json(t: Trace, with_spans: bool = False) -> dict:
 
 
 _INDEX_HTML = """<!doctype html>
-<meta charset="utf-8"><title>AgentLens</title>
+<meta charset="utf-8"><title>AgentRewind</title>
 <style>
  body{font:14px/1.5 -apple-system,system-ui,sans-serif;max-width:960px;margin:2rem auto;padding:0 1rem;color:#1a1a2e}
  h1{font-size:1.3rem} table{border-collapse:collapse;width:100%}
@@ -51,7 +51,7 @@ _INDEX_HTML = """<!doctype html>
  .div{border-left:3px solid #e67e22;padding:.3rem .6rem;margin-bottom:.5rem;background:#fdf6ef}
  .cols{display:flex;gap:.6rem}.cols pre{flex:1;min-width:0}
 </style>
-<h1>AgentLens — traces</h1><div id="app">loading…</div>
+<h1>AgentRewind — traces</h1><div id="app">loading…</div>
 <script>
 const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 let picked = [];
@@ -108,7 +108,7 @@ def create_app():
     from fastapi import FastAPI, HTTPException
     from fastapi.responses import HTMLResponse
 
-    app = FastAPI(title="AgentLens")
+    app = FastAPI(title="AgentRewind")
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:

@@ -1,4 +1,4 @@
-"""AgentLens: flight recorder for LLM agents — trace, replay, diff."""
+"""AgentRewind: flight recorder for LLM agents — trace, replay, diff."""
 
 from .diff import Divergence, diff_traces, format_divergences
 from .models import Span, SpanKind, Status, Trace

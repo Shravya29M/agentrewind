@@ -1,6 +1,6 @@
 import pytest
 
-import agentlens as al
+import agentrewind as al
 from test_providers import REQ, FakeAnthropic, FakeOpenAI
 
 

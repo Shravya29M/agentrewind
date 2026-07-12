@@ -1,4 +1,4 @@
-"""Command-line interface: agentlens list | show | diff | serve."""
+"""Command-line interface: agentrewind list | show | diff | serve."""
 
 from __future__ import annotations
 
@@ -64,15 +64,20 @@ def cmd_serve(args) -> int:
 
         from .server import create_app
     except ImportError:
-        print("Server extras not installed. Run: pip install 'agentlens[server]'", file=sys.stderr)
+        print(
+            "Server extras not installed. Run: pip install 'agentrewind[server]'",
+            file=sys.stderr,
+        )
         return 1
     uvicorn.run(create_app(), host=args.host, port=args.port)
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="agentlens", description="Flight recorder for LLM agents")
-    parser.add_argument("--db", help="path to traces db (default ~/.agentlens/traces.db)")
+    parser = argparse.ArgumentParser(
+        prog="agentrewind", description="Flight recorder for LLM agents"
+    )
+    parser.add_argument("--db", help="path to traces db (default ~/.agentrewind/traces.db)")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("list", help="list recent traces")
