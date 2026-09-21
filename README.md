@@ -1,6 +1,10 @@
 # AgentRewind
 
 [![CI](https://github.com/Shravya29M/agentrewind/actions/workflows/ci.yml/badge.svg)](https://github.com/Shravya29M/agentrewind/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/llm-run-recorder)](https://pypi.org/project/llm-run-recorder/)
+![Python](https://img.shields.io/pypi/pyversions/llm-run-recorder)
+![coverage](https://img.shields.io/badge/coverage-%E2%89%A597%25-brightgreen)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 **Flight recorder for LLM agents.** Trace every LLM and tool call an agent makes, replay a
 run deterministically (no API calls, no cost, no nondeterminism), and diff two runs to find
@@ -126,9 +130,25 @@ agentrewind diff <run1> <run2>        # pinpoints the prompt change that caused 
 
 ```bash
 pip install -e '.[dev]'
-pytest
+pytest                # runs with coverage; fails under 97%
 ruff check .
 ```
+
+**108 tests, 99% branch coverage**, enforced in CI across Python 3.10, 3.12 and 3.13.
+
+The suites worth knowing about:
+
+- `test_diff_alignment.py` pins the greedy span-alignment walk in `diff.py`. When two runs take
+  different shapes, that walk decides whether an extra step is reported against the left or the
+  right run, which is what makes the first divergence point at the real cause. Covers
+  insertions, deletions, positional swaps, trailing spans and same-name-different-kind.
+- `test_replay.py` and `test_streaming.py` check that a replayed run is byte-for-byte identical
+  to the recording and makes no provider calls.
+- `test_concurrency.py` and `test_async.py` cover concurrent recording into one store.
+- `test_redaction.py` covers credential scrubbing before anything reaches SQLite.
+
+Dependency updates come through Renovate (`renovate.json`); GitHub Actions bumps are grouped
+and automerged once CI is green, majors always get a human review.
 
 ## Reproducible evaluation
 
