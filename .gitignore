@@ -10,3 +10,8 @@ build/
 *.db-wal
 *.db-shm
 .DS_Store
+
+# Coverage
+.coverage
+coverage.xml
+htmlcov/
