@@ -7,7 +7,7 @@ import agentrewind as al
 from agentrewind.models import Span, SpanKind, Status
 from agentrewind.providers import _anthropic_usage_to_openai, _to_dict
 from agentrewind.redaction import RedactionPolicy
-from agentrewind.store import TraceStore
+from agentrewind.store import SQLiteStore
 
 # --------------------------------------------------------------------------
 # provider response normalization
@@ -128,32 +128,33 @@ def test_non_string_keys_are_handled():
 
 
 def test_an_in_memory_store_needs_no_directory():
-    store = TraceStore(":memory:")
+    store = SQLiteStore(":memory:")
     assert store.list_traces(10) == []
+    store.close()
 
 
-def test_import_rejects_a_payload_that_is_not_an_export():
-    store = TraceStore(":memory:")
+def test_import_rejects_a_payload_that_is_not_an_export(fresh_store):
+    store = fresh_store
     with pytest.raises(ValueError, match="not an AgentRewind trace v1 export"):
         store.import_trace({"format": "something.else", "trace": {}})
 
 
-def test_import_rejects_an_export_whose_trace_is_not_an_object():
-    store = TraceStore(":memory:")
+def test_import_rejects_an_export_whose_trace_is_not_an_object(fresh_store):
+    store = fresh_store
     with pytest.raises(ValueError, match="not an AgentRewind trace v1 export"):
         store.import_trace({"format": "agentrewind.trace.v1", "trace": []})
 
 
-def test_import_rejects_an_export_missing_required_fields():
-    store = TraceStore(":memory:")
+def test_import_rejects_an_export_missing_required_fields(fresh_store):
+    store = fresh_store
     with pytest.raises(ValueError, match="missing required fields"):
         store.import_trace(
             {"format": "agentrewind.trace.v1", "trace": {"trace_id": "x"}}
         )
 
 
-def test_import_rejects_an_export_whose_spans_are_not_a_list():
-    store = TraceStore(":memory:")
+def test_import_rejects_an_export_whose_spans_are_not_a_list(fresh_store):
+    store = fresh_store
     with pytest.raises(ValueError, match="missing required fields"):
         store.import_trace(
             {
@@ -170,8 +171,8 @@ def test_import_rejects_an_export_whose_spans_are_not_a_list():
         )
 
 
-def test_import_rejects_a_malformed_span():
-    store = TraceStore(":memory:")
+def test_import_rejects_a_malformed_span(fresh_store):
+    store = fresh_store
     with pytest.raises(ValueError, match="invalid trace export"):
         store.import_trace(
             {
@@ -196,8 +197,8 @@ def test_import_refuses_to_clobber_an_existing_trace(fresh_store):
         fresh_store.import_trace(artifact)
 
 
-def test_export_of_an_unknown_trace_returns_none():
-    assert TraceStore(":memory:").export_trace("nope") is None
+def test_export_of_an_unknown_trace_returns_none(fresh_store):
+    assert fresh_store.export_trace("nope") is None
 
 
 # --------------------------------------------------------------------------

@@ -1,0 +1,21 @@
+# Local PostgreSQL for the full test suite and the storage benchmark.
+#
+#   docker compose up -d
+#   export AGENTREWIND_DB_URL=postgresql://agentrewind:agentrewind@localhost:55432/agentrewind
+#   pytest
+#
+# Host port 55432 avoids clashing with a PostgreSQL already running on 5432.
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: agentrewind
+      POSTGRES_PASSWORD: agentrewind
+      POSTGRES_DB: agentrewind
+    ports:
+      - "55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentrewind -d agentrewind"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

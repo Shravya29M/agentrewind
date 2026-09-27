@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 import agentrewind as al
+from agentrewind import sdk
 from agentrewind.cli import main
 
 
@@ -88,17 +89,18 @@ def test_export_of_an_unknown_trace_fails_with_exit_1(capsys):
 # --------------------------------------------------------------------------
 
 
-def test_export_then_import_round_trips_into_a_fresh_store(tmp_path, capsys):
+def test_export_then_import_round_trips_into_a_fresh_store(tmp_path, make_target, capsys):
     t = record(answer="sunny")
     dest = tmp_path / "trace.json"
     main(["export", t.trace_id, "-o", str(dest)])
     capsys.readouterr()
 
-    fresh_db = tmp_path / "other.db"
-    assert main(["--db", str(fresh_db), "import", str(dest)]) == 0
+    fresh_db = make_target("other")
+    assert main(["--db", fresh_db, "import", str(dest)]) == 0
     assert f"imported {t.trace_id}" in capsys.readouterr().out
+    sdk.get_store().close()  # each real CLI invocation is its own process
 
-    assert main(["--db", str(fresh_db), "show", t.trace_id]) == 0
+    assert main(["--db", fresh_db, "show", t.trace_id]) == 0
     assert "[tool] search" in capsys.readouterr().out
 
 
@@ -181,7 +183,7 @@ def test_serve_explains_how_to_install_the_extras_when_they_are_missing(monkeypa
     actionable message rather than a traceback."""
     monkeypatch.setitem(sys.modules, "uvicorn", None)
     assert main(["serve"]) == 1
-    assert "pip install 'agentrewind[server]'" in capsys.readouterr().err
+    assert "pip install 'llm-run-recorder[server]'" in capsys.readouterr().err
 
 
 # --------------------------------------------------------------------------
@@ -189,10 +191,10 @@ def test_serve_explains_how_to_install_the_extras_when_they_are_missing(monkeypa
 # --------------------------------------------------------------------------
 
 
-def test_db_flag_points_the_cli_at_another_database(tmp_path, capsys):
+def test_db_flag_points_the_cli_at_another_database(make_target, capsys):
     record()
-    other = tmp_path / "empty.db"
-    assert main(["--db", str(other), "list"]) == 0
+    other = make_target("empty")
+    assert main(["--db", other, "list"]) == 0
     assert "No traces recorded yet." in capsys.readouterr().out
 
 

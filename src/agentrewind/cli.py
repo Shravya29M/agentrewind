@@ -92,7 +92,7 @@ def cmd_serve(args) -> int:
         from .server import create_app
     except ImportError:
         print(
-            "Server extras not installed. Run: pip install 'agentrewind[server]'",
+            "Server extras not installed. Run: pip install 'llm-run-recorder[server]'",
             file=sys.stderr,
         )
         return 1
@@ -104,7 +104,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="agentrewind", description="Flight recorder for LLM agents"
     )
-    parser.add_argument("--db", help="path to traces db (default ~/.agentrewind/traces.db)")
+    parser.add_argument(
+        "--db",
+        help="SQLite path or postgresql:// URL "
+        "(default $AGENTREWIND_DB_URL, else ~/.agentrewind/traces.db)",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("list", help="list recent traces")

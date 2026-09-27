@@ -11,7 +11,7 @@ from typing import Any
 
 from .models import Span, SpanKind, Status, Trace
 from .redaction import RedactionPolicy
-from .store import TraceStore
+from .store import BaseStore, open_store
 
 _current_trace: contextvars.ContextVar[Trace | None] = contextvars.ContextVar(
     "agentrewind_trace", default=None
@@ -19,24 +19,28 @@ _current_trace: contextvars.ContextVar[Trace | None] = contextvars.ContextVar(
 _current_span: contextvars.ContextVar[Span | None] = contextvars.ContextVar(
     "agentrewind_span", default=None
 )
-_store: TraceStore | None = None
+_store: BaseStore | None = None
 
 
 def configure(
-    store: TraceStore | None = None,
+    store: BaseStore | None = None,
     db_path: str | None = None,
     redaction: RedactionPolicy | None = None,
-) -> TraceStore:
-    """Set the global store. Called implicitly with defaults on first use."""
+) -> BaseStore:
+    """Set the global store. Called implicitly with defaults on first use.
+
+    ``db_path`` is a SQLite path or a ``postgresql://`` URL. Without either argument the
+    store comes from ``AGENTREWIND_DB_URL``, else ``~/.agentrewind/traces.db``.
+    """
     global _store
-    _store = store or TraceStore(db_path, redaction=redaction)
+    _store = store or open_store(db_path, redaction=redaction)
     return _store
 
 
-def get_store() -> TraceStore:
+def get_store() -> BaseStore:
     global _store
     if _store is None:
-        _store = TraceStore()
+        _store = open_store()
     return _store
 
 

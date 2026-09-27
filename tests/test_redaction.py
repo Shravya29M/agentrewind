@@ -1,10 +1,9 @@
 import agentrewind as al
 from agentrewind.redaction import RedactionPolicy
-from agentrewind.store import TraceStore
 
 
-def test_redaction_removes_sensitive_values_from_persisted_trace(tmp_path):
-    store = TraceStore(tmp_path / "traces.db", redaction=RedactionPolicy())
+def test_redaction_removes_sensitive_values_from_persisted_trace(make_store):
+    store = make_store("redacted", redaction=RedactionPolicy())
     al.configure(store=store)
 
     with al.trace("private", metadata={"api_key": "sk-proj-abcdefghijklmnopqrstuvwxyz"}) as trace:
@@ -23,8 +22,8 @@ def test_redaction_removes_sensitive_values_from_persisted_trace(tmp_path):
     assert trace.spans[0].input["headers"]["Authorization"].startswith("Bearer ")
 
 
-def test_redaction_applies_to_replay_cache(tmp_path):
-    store = TraceStore(tmp_path / "traces.db", redaction=RedactionPolicy())
+def test_redaction_applies_to_replay_cache(make_store):
+    store = make_store("redacted", redaction=RedactionPolicy())
     store.cache_put(
         "fingerprint", {"token": "private"}, {"authorization": "Bearer abcdefghijklmnop"}
     )

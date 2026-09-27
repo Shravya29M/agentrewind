@@ -19,8 +19,9 @@ what happened and **compare** runs structurally.
 ## Install
 
 ```bash
-pip install llm-run-recorder            # core (stdlib-only)
-pip install 'llm-run-recorder[server]'  # + web trace viewer
+pip install llm-run-recorder              # core (stdlib-only)
+pip install 'llm-run-recorder[server]'    # + web trace viewer
+pip install 'llm-run-recorder[postgres]'  # + PostgreSQL storage backend (psycopg 3)
 ```
 
 ## Trace
@@ -39,6 +40,32 @@ with al.trace("research-agent"):
 
 Traces (span tree, inputs/outputs, latency, token counts, errors) are stored in a local
 SQLite db at `~/.agentrewind/traces.db` — no account, no server required.
+
+### PostgreSQL backend (optional)
+
+SQLite keeps traces on one machine. PostgreSQL gives a team or a fleet one **shared trace
+store**: agents, eval workers and CI jobs on different machines all record into the same
+database. Any teammate can then `list`, `show`, `diff` or open the viewer on any run, wherever
+it was recorded, and query every run with ordinary SQL (for example, error rates or token
+usage by model across all of last week's runs). Choose it for sharing and querying, not
+speed. On one machine the SQLite default wrote faster in our benchmark.
+
+```bash
+pip install 'llm-run-recorder[postgres]'
+export AGENTREWIND_DB_URL=postgresql://user:password@host:5432/dbname
+```
+
+Everything else stays the same: recording, replay, diff, the CLI and the web viewer. The
+schema is created on first use. You can also pass the URL explicitly with
+`agentrewind --db postgresql://… list`, `al.configure(db_path="postgresql://…")` or
+`agentrewind.open_store("postgresql://…")`. To use a schema other than `public`, append
+`?options=-csearch_path%3Dmyschema`. Both backends store the same schema and return the same
+results. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#storage) for the concurrency model
+and [docs/EVALUATION.md](docs/EVALUATION.md#concurrent-writers-sqlite-vs-postgresql) for the
+concurrent-writer benchmark.
+
+Upgrading from 0.2.x: an existing `traces.db` is migrated in place the first time 0.3 opens
+it. The migration is one-way, so 0.2.x cannot write to the file afterwards.
 
 ### Sensitive-data controls
 
@@ -130,11 +157,23 @@ agentrewind diff <run1> <run2>        # pinpoints the prompt change that caused 
 
 ```bash
 pip install -e '.[dev]'
-pytest                # runs with coverage; fails under 97%
+pytest                # SQLite half of the suite; PostgreSQL tests skip without a database
 ruff check .
 ```
 
-**108 tests, 99% branch coverage**, enforced in CI across Python 3.10, 3.12 and 3.13.
+Every test is parametrized over both storage backends. To run the full suite locally, start
+the bundled PostgreSQL first:
+
+```bash
+docker compose up -d
+export AGENTREWIND_DB_URL=postgresql://agentrewind:agentrewind@localhost:55432/agentrewind
+pytest --cov-fail-under=97
+```
+
+**280 tests (140 per backend), 99.55% branch coverage** with PostgreSQL available. CI runs the full suite
+against a PostgreSQL 17 service container on Python 3.10, 3.12 and 3.13, and enforces the 97%
+coverage floor. The floor is CI-only because a local run without PostgreSQL leaves the
+backend's module uncovered.
 
 The suites worth knowing about:
 
@@ -145,7 +184,11 @@ The suites worth knowing about:
 - `test_replay.py` and `test_streaming.py` check that a replayed run is byte-for-byte identical
   to the recording and makes no provider calls.
 - `test_concurrency.py` and `test_async.py` cover concurrent recording into one store.
-- `test_redaction.py` covers credential scrubbing before anything reaches SQLite.
+- `test_redaction.py` covers credential scrubbing before anything reaches the store.
+- `test_storage_backends.py` is the backend contract: identical ordering, lookup and
+  round-trip behaviour on both backends; migrating a database written by the published 0.2.2
+  release (`tests/fixtures/traces_v0_2_2.db`); and separate writer processes saving
+  distinct traces and contending for the same one.
 
 Dependency updates come through Renovate (`renovate.json`); GitHub Actions bumps are grouped
 and automerged once CI is green, majors always get a human review.
@@ -157,6 +200,13 @@ calls; it also reports local recording and replay throughput:
 
 ```bash
 python benchmarks/replay_benchmark.py --calls 1000
+```
+
+A second benchmark measures 1, 4, 8, 16 and 32 concurrent writer processes on each storage
+backend (traces/sec and p95 write latency):
+
+```bash
+python benchmarks/storage_benchmark.py --output results.json
 ```
 
 See [the evaluation protocol](docs/EVALUATION.md) for a repeatable benchmark and CI regression

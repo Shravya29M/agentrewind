@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+## 0.3.0 — not yet published
+- Optional PostgreSQL storage backend: `pip install 'llm-run-recorder[postgres]'` (psycopg 3),
+  selected with `AGENTREWIND_DB_URL=postgresql://…` or a URL passed to `--db`,
+  `configure(db_path=…)` or `open_store(…)`. The core remains stdlib-only and SQLite remains
+  the zero-setup default.
+- Storage interface: `BaseStore`, `SQLiteStore` and `open_store()` are exported.
+  `TraceStore` is still accepted and is an alias for `SQLiteStore`.
+- Safe for many concurrent writer processes on PostgreSQL: a row lock serialises writes to the
+  same trace, schema creation takes an advisory lock, and connections are never reused
+  across `fork()`. SQLite writers now wait up to 30 s for the write lock (previously 5 s).
+- Deterministic ordering on both backends: new `spans.seq` column so spans with identical
+  timestamps return in execution order; trace-list ties broken by id.
+- `get_trace` prefix lookup: an exact id match now always wins, an ambiguous prefix resolves
+  to the lowest id, and `%` / `_` in the lookup are matched literally rather than as `LIKE`
+  wildcards.
+- **Migration:** opening a 0.2.x `traces.db` adds `spans.seq` automatically and in place.
+  Existing traces are kept and ordered by (timestamp, span id). The change is one-way:
+  0.2.x cannot write to a migrated file.
+- `benchmarks/storage_benchmark.py`: concurrent-writer-process benchmark for both backends.
+- `agentrewind serve` without the server extra now suggests the correct package name,
+  `pip install 'llm-run-recorder[server]'`.
+- Tests run against both backends; `docker-compose.yml` provides local PostgreSQL. The 97%
+  coverage floor is now enforced in CI only.
+
 ## 0.2.2 — 2026-07-12
 - Privacy controls: opt-in `RedactionPolicy` recursively removes common credential fields and
   token formats before trace payloads, metadata, and replay-cache entries reach SQLite.

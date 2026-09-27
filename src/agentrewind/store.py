@@ -1,4 +1,10 @@
-"""SQLite-backed trace store. Zero-config: defaults to ~/.agentrewind/traces.db."""
+"""Trace storage: a backend-neutral interface plus the zero-config SQLite default.
+
+SQLite (``~/.agentrewind/traces.db``) needs no setup. Set ``AGENTREWIND_DB_URL`` to a
+``postgresql://`` URL, or pass one to :func:`open_store`, to use the optional PostgreSQL
+backend in :mod:`agentrewind.postgres` instead. Both backends share one schema and the
+behaviour defined here; they differ only in SQL dialect and connection handling.
+"""
 
 from __future__ import annotations
 
@@ -6,6 +12,8 @@ import json
 import os
 import sqlite3
 import threading
+import time
+from abc import ABC, abstractmethod
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -14,8 +22,22 @@ from .models import Span, SpanKind, Status, Trace
 from .redaction import RedactionPolicy
 
 DEFAULT_DB = Path(os.environ.get("AGENTREWIND_DB", "~/.agentrewind/traces.db")).expanduser()
+DB_URL_ENV = "AGENTREWIND_DB_URL"
+POSTGRES_SCHEMES = ("postgres://", "postgresql://")
 
-_SCHEMA = """
+# Column lists are spelled out rather than relying on positional INSERT/SELECT *, so the
+# spans.seq column added in 0.3.0 does not shift anything.
+TRACE_COLUMNS = "trace_id, name, started_at, ended_at, status, metadata"
+SPAN_COLUMNS = (
+    "span_id, trace_id, parent_id, name, kind, started_at, ended_at, status, error, "
+    "input, output, attributes"
+)
+# Execution order. seq is the span's index in Trace.spans; rows written before 0.3.0 have
+# no seq, so they fall back to (started_at, span_id). "seq IS NULL" sorts NULLs last on
+# both backends (SQLite and PostgreSQL disagree on the default NULL position).
+SPAN_ORDER = "started_at, seq IS NULL, seq, span_id"
+
+_SQLITE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS traces (
     trace_id   TEXT PRIMARY KEY,
     name       TEXT NOT NULL,
@@ -36,7 +58,8 @@ CREATE TABLE IF NOT EXISTS spans (
     error      TEXT,
     input      TEXT,
     output     TEXT,
-    attributes TEXT NOT NULL DEFAULT '{}'
+    attributes TEXT NOT NULL DEFAULT '{}',
+    seq        INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_spans_trace ON spans(trace_id);
 CREATE TABLE IF NOT EXISTS llm_cache (
@@ -48,87 +71,84 @@ CREATE TABLE IF NOT EXISTS llm_cache (
 """
 
 
-class TraceStore:
-    def __init__(
-        self, path: str | Path | None = None, *, redaction: RedactionPolicy | None = None
-    ):
-        self.path = Path(path).expanduser() if path else DEFAULT_DB
-        self.redaction = redaction
-        if str(self.path) != ":memory:":
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._local = threading.local()
-        self._conn().executescript(_SCHEMA)
+def open_store(
+    target: str | Path | None = None, *, redaction: RedactionPolicy | None = None
+) -> BaseStore:
+    """Open the store named by ``target``: a ``postgresql://`` URL or a SQLite path.
 
-    def _conn(self) -> sqlite3.Connection:
-        conn = getattr(self._local, "conn", None)
-        if conn is None:
-            conn = sqlite3.connect(str(self.path))
-            conn.execute("PRAGMA journal_mode=WAL")
-            self._local.conn = conn
-        return conn
+    With no target, ``AGENTREWIND_DB_URL`` is consulted, then the SQLite default.
+    """
+    if target is None:
+        target = os.environ.get(DB_URL_ENV) or None
+    if isinstance(target, str) and target.startswith(POSTGRES_SCHEMES):
+        from .postgres import PostgresStore
+
+        return PostgresStore(target, redaction=redaction)
+    return SQLiteStore(target, redaction=redaction)
+
+
+class BaseStore(ABC):
+    """Everything backend-independent: serialisation, redaction, export/import.
+
+    Subclasses implement the ``_``-prefixed primitives against their database.
+    """
+
+    redaction: RedactionPolicy | None
+
+    # -- backend primitives ----------------------------------------------------
+
+    @abstractmethod
+    def _write_trace(self, trace_row: tuple, span_rows: list[tuple]) -> None:
+        """Atomically replace the trace row and all of its spans."""
+
+    @abstractmethod
+    def _find_trace_row(self, trace_id: str) -> tuple | None:
+        """Exact id match, else the first id (in id order) with this case-insensitive prefix."""
+
+    @abstractmethod
+    def _span_rows(self, trace_id: str) -> list[tuple]:
+        """Span rows in SPAN_ORDER."""
+
+    @abstractmethod
+    def _trace_rows(self, limit: int) -> list[tuple]:
+        """Most recent traces first; ties broken by trace_id."""
+
+    @abstractmethod
+    def _cache_write(self, row: tuple) -> None: ...
+
+    @abstractmethod
+    def _cache_read(self, fingerprint: str) -> str | None: ...
+
+    @abstractmethod
+    def close(self) -> None:
+        """Close every connection this store opened."""
 
     # -- traces ------------------------------------------------------------
 
     def save_trace(self, trace: Trace) -> None:
-        conn = self._conn()
-        with conn:
-            conn.execute(
-                "INSERT OR REPLACE INTO traces VALUES (?,?,?,?,?,?)",
-                (
-                    trace.trace_id,
-                    trace.name,
-                    trace.started_at,
-                    trace.ended_at,
-                    trace.status.value,
-                    json.dumps(self._redact(trace.metadata), default=str),
-                ),
-            )
-            conn.execute("DELETE FROM spans WHERE trace_id = ?", (trace.trace_id,))
-            conn.executemany(
-                "INSERT INTO spans VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                [self._redacted_span(s).to_row() for s in trace.spans],
-            )
+        trace_row = (
+            trace.trace_id,
+            trace.name,
+            trace.started_at,
+            trace.ended_at,
+            trace.status.value,
+            json.dumps(self._redact(trace.metadata), default=str),
+        )
+        span_rows = [
+            (*self._redacted_span(s).to_row(), seq) for seq, s in enumerate(trace.spans)
+        ]
+        self._write_trace(trace_row, span_rows)
 
     def get_trace(self, trace_id: str) -> Trace | None:
-        conn = self._conn()
-        row = conn.execute(
-            "SELECT trace_id, name, started_at, ended_at, status, metadata "
-            "FROM traces WHERE trace_id = ? OR trace_id LIKE ?",
-            (trace_id, trace_id + "%"),
-        ).fetchone()
+        row = self._find_trace_row(trace_id)
         if row is None:
             return None
-        trace = Trace(
-            trace_id=row[0],
-            name=row[1],
-            started_at=row[2],
-            ended_at=row[3],
-            status=Status(row[4]),
-            metadata=json.loads(row[5]),
-        )
-        span_rows = conn.execute(
-            "SELECT * FROM spans WHERE trace_id = ? ORDER BY started_at", (trace.trace_id,)
-        ).fetchall()
-        trace.spans = [Span.from_row(r) for r in span_rows]
+        trace = _trace_from_row(row)
+        trace.spans = [Span.from_row(r) for r in self._span_rows(trace.trace_id)]
         return trace
 
     def list_traces(self, limit: int = 50) -> list[Trace]:
-        rows = self._conn().execute(
-            "SELECT trace_id, name, started_at, ended_at, status, metadata "
-            "FROM traces ORDER BY started_at DESC LIMIT ?",
-            (limit,),
-        ).fetchall()
-        return [
-            Trace(
-                trace_id=r[0],
-                name=r[1],
-                started_at=r[2],
-                ended_at=r[3],
-                status=Status(r[4]),
-                metadata=json.loads(r[5]),
-            )
-            for r in rows
-        ]
+        return [_trace_from_row(r) for r in self._trace_rows(limit)]
 
     def export_trace(self, trace_id: str) -> dict[str, Any] | None:
         """Return a portable, versioned JSON-safe representation of a trace."""
@@ -212,24 +232,18 @@ class TraceStore:
     # -- llm replay cache ----------------------------------------------------
 
     def cache_put(self, fingerprint: str, request: dict, response: dict) -> None:
-        import time
-
-        with self._conn() as conn:
-            conn.execute(
-                "INSERT OR REPLACE INTO llm_cache VALUES (?,?,?,?)",
-                (
-                    fingerprint,
-                    json.dumps(self._redact(request), default=str),
-                    json.dumps(self._redact(response), default=str),
-                    time.time(),
-                ),
+        self._cache_write(
+            (
+                fingerprint,
+                json.dumps(self._redact(request), default=str),
+                json.dumps(self._redact(response), default=str),
+                time.time(),
             )
+        )
 
     def cache_get(self, fingerprint: str) -> dict | None:
-        row = self._conn().execute(
-            "SELECT response FROM llm_cache WHERE fingerprint = ?", (fingerprint,)
-        ).fetchone()
-        return json.loads(row[0]) if row else None
+        raw = self._cache_read(fingerprint)
+        return json.loads(raw) if raw is not None else None
 
     def _redact(self, value: Any) -> Any:
         return self.redaction.redact(value) if self.redaction else value
@@ -244,3 +258,135 @@ class TraceStore:
             attributes=self._redact(span.attributes),
             error=self._redact(span.error),
         )
+
+
+def _trace_from_row(row: tuple) -> Trace:
+    return Trace(
+        trace_id=row[0],
+        name=row[1],
+        started_at=row[2],
+        ended_at=row[3],
+        status=Status(row[4]),
+        metadata=json.loads(row[5]),
+    )
+
+
+class SQLiteStore(BaseStore):
+    """Zero-config default backend: one SQLite file in WAL mode, one connection per thread."""
+
+    # Seconds a writer waits on another process's lock before raising "database is locked".
+    BUSY_TIMEOUT = 30.0
+
+    def __init__(
+        self, path: str | Path | None = None, *, redaction: RedactionPolicy | None = None
+    ):
+        self.path = Path(path).expanduser() if path else DEFAULT_DB
+        self.redaction = redaction
+        if str(self.path) != ":memory:":
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._local = threading.local()
+        self._all_conns: list[sqlite3.Connection] = []
+        self._conns_lock = threading.Lock()
+        conn = self._conn()
+        conn.executescript(_SQLITE_SCHEMA)
+        self._migrate(conn)
+
+    def __repr__(self) -> str:
+        return f"SQLiteStore({str(self.path)!r})"
+
+    def _conn(self) -> sqlite3.Connection:
+        conn = getattr(self._local, "conn", None)
+        if conn is None:
+            # Each connection is only used by its own thread; check_same_thread=False just
+            # lets close() release every thread's connection from the calling thread.
+            conn = sqlite3.connect(
+                str(self.path), timeout=self.BUSY_TIMEOUT, check_same_thread=False
+            )
+            conn.execute("PRAGMA journal_mode=WAL")
+            self._local.conn = conn
+            with self._conns_lock:
+                self._all_conns.append(conn)
+        return conn
+
+    @staticmethod
+    def _migrate(conn: sqlite3.Connection) -> None:
+        """Bring a database created by an earlier release up to the current schema.
+
+        Idempotent and safe when several processes open the same old file at once: the
+        column check is repeated under an exclusive write lock before altering.
+        """
+
+        def has_seq() -> bool:
+            return any(col[1] == "seq" for col in conn.execute("PRAGMA table_info(spans)"))
+
+        if has_seq():
+            return
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            if not has_seq():
+                # 0.2.x rows keep seq NULL and sort by (started_at, span_id).
+                conn.execute("ALTER TABLE spans ADD COLUMN seq INTEGER")
+            conn.execute("COMMIT")
+        except BaseException:
+            conn.execute("ROLLBACK")
+            raise
+
+    def close(self) -> None:
+        with self._conns_lock:
+            conns, self._all_conns = self._all_conns, []
+        for conn in conns:
+            conn.close()
+        self._local = threading.local()
+
+    def _write_trace(self, trace_row: tuple, span_rows: list[tuple]) -> None:
+        conn = self._conn()
+        with conn:
+            conn.execute(
+                f"INSERT OR REPLACE INTO traces ({TRACE_COLUMNS}) VALUES (?,?,?,?,?,?)",
+                trace_row,
+            )
+            conn.execute("DELETE FROM spans WHERE trace_id = ?", (trace_row[0],))
+            conn.executemany(
+                f"INSERT INTO spans ({SPAN_COLUMNS}, seq) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                span_rows,
+            )
+
+    def _find_trace_row(self, trace_id: str) -> tuple | None:
+        conn = self._conn()
+        row = conn.execute(
+            f"SELECT {TRACE_COLUMNS} FROM traces WHERE trace_id = ?", (trace_id,)
+        ).fetchone()
+        if row is not None:
+            return row
+        return conn.execute(
+            f"SELECT {TRACE_COLUMNS} FROM traces "
+            "WHERE lower(substr(trace_id, 1, length(?))) = lower(?) "
+            "ORDER BY trace_id LIMIT 1",
+            (trace_id, trace_id),
+        ).fetchone()
+
+    def _span_rows(self, trace_id: str) -> list[tuple]:
+        return self._conn().execute(
+            f"SELECT {SPAN_COLUMNS} FROM spans WHERE trace_id = ? ORDER BY {SPAN_ORDER}",
+            (trace_id,),
+        ).fetchall()
+
+    def _trace_rows(self, limit: int) -> list[tuple]:
+        return self._conn().execute(
+            f"SELECT {TRACE_COLUMNS} FROM traces ORDER BY started_at DESC, trace_id LIMIT ?",
+            (limit,),
+        ).fetchall()
+
+    def _cache_write(self, row: tuple) -> None:
+        with self._conn() as conn:
+            conn.execute("INSERT OR REPLACE INTO llm_cache VALUES (?,?,?,?)", row)
+
+    def _cache_read(self, fingerprint: str) -> str | None:
+        row = self._conn().execute(
+            "SELECT response FROM llm_cache WHERE fingerprint = ?", (fingerprint,)
+        ).fetchone()
+        return row[0] if row else None
+
+
+# Backwards-compatible name: TraceStore(path) has always meant the SQLite store.
+TraceStore = SQLiteStore

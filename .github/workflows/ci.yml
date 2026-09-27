@@ -15,6 +15,25 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.10", "3.12", "3.13"]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: agentrewind
+          POSTGRES_PASSWORD: agentrewind
+          POSTGRES_DB: agentrewind
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agentrewind -d agentrewind"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      # Every test runs against SQLite and PostgreSQL; REQUIRE makes a missing
+      # database fail the job instead of silently skipping the PostgreSQL half.
+      AGENTREWIND_DB_URL: postgresql://agentrewind:agentrewind@localhost:5432/agentrewind
+      AGENTREWIND_REQUIRE_POSTGRES: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,8 +42,9 @@ jobs:
       - run: pip install -e '.[dev]' build twine
       - run: ruff check .
       - name: Tests with coverage
-        # Coverage reporting and the 97% floor live in pyproject.toml.
-        run: pytest -q
+        # Coverage reporting lives in pyproject.toml; the 97% floor is CI-only because
+        # local runs without PostgreSQL skip the backend's tests.
+        run: pytest -q --cov-fail-under=97
       - run: python -m build && python -m twine check dist/*
       - name: Upload coverage
         if: always() && matrix.python-version == '3.13'

@@ -15,17 +15,19 @@ from .sdk import (
     trace,
     traced,
 )
-from .store import TraceStore
+from .store import BaseStore, SQLiteStore, TraceStore, open_store
 
-__version__ = "0.2.2"
+__version__ = "0.3.0"
 
 __all__ = [
     "AnthropicMessages",
+    "BaseStore",
     "Divergence",
     "OpenAIChat",
     "Recorder",
     "RedactionPolicy",
     "ReplayMissError",
+    "SQLiteStore",
     "Span",
     "SpanKind",
     "Status",
@@ -39,6 +41,7 @@ __all__ = [
     "format_divergences",
     "get_store",
     "instrument",
+    "open_store",
     "record_llm_call",
     "span",
     "trace",

@@ -4,7 +4,6 @@ import pytest
 
 import agentrewind as al
 from agentrewind.cli import main
-from agentrewind.store import TraceStore
 
 
 def make_trace():
@@ -14,13 +13,13 @@ def make_trace():
     return trace
 
 
-def test_trace_export_import_round_trip(tmp_path):
-    source = TraceStore(tmp_path / "source.db")
+def test_trace_export_import_round_trip(make_store):
+    source = make_store("source")
     al.configure(store=source)
     original = make_trace()
 
     artifact = source.export_trace(original.trace_id)
-    target = TraceStore(tmp_path / "target.db")
+    target = make_store("target")
     restored = target.import_trace(artifact)
 
     assert restored.trace_id == original.trace_id
@@ -28,20 +27,20 @@ def test_trace_export_import_round_trip(tmp_path):
     assert restored.spans[0].output == {"answer": "sunny"}
 
 
-def test_cli_export_and_import(tmp_path, fresh_store, capsys):
+def test_cli_export_and_import(tmp_path, fresh_store, make_store, capsys):
     trace = make_trace()
     artifact_path = tmp_path / "baseline.json"
     assert main(["export", trace.trace_id, "--output", str(artifact_path)]) == 0
     assert json.loads(artifact_path.read_text())["format"] == "agentrewind.trace.v1"
 
-    target = TraceStore(tmp_path / "target.db")
+    target = make_store("target")
     al.configure(store=target)
     assert main(["import", str(artifact_path)]) == 0
     assert trace.trace_id in capsys.readouterr().out
     assert target.get_trace(trace.trace_id).spans[0].name == "lookup"
 
 
-def test_import_rejects_unknown_or_duplicate_artifacts(tmp_path):
-    store = TraceStore(tmp_path / "traces.db")
+def test_import_rejects_unknown_or_duplicate_artifacts(fresh_store):
+    store = fresh_store
     with pytest.raises(ValueError, match="trace v1"):
         store.import_trace({})

@@ -7,11 +7,13 @@ build/
 .pytest_cache/
 .ruff_cache/
 *.db
+# Committed on purpose: a traces.db written by the published 0.2.2 wheel (migration tests)
+!tests/fixtures/*.db
 *.db-wal
 *.db-shm
 .DS_Store
 
 # Coverage
-.coverage
+.coverage*
 coverage.xml
 htmlcov/

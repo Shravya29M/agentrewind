@@ -15,7 +15,7 @@ from collections.abc import Callable
 from typing import Any
 
 from .sdk import get_store, record_llm_call
-from .store import TraceStore
+from .store import BaseStore
 
 
 class ReplayMissError(RuntimeError):
@@ -33,7 +33,7 @@ class Recorder:
         self,
         call_fn: Callable[[dict[str, Any]], Any],
         mode: str = "auto",
-        store: TraceStore | None = None,
+        store: BaseStore | None = None,
         canonicalize: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
     ):
         """canonicalize, if given, transforms the request before fingerprinting —

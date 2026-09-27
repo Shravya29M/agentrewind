@@ -1,0 +1,427 @@
+{
+  "environment": {
+    "platform": "macOS-15.7.4-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "cpu_count": 10,
+    "python": "3.13.5",
+    "sqlite": "3.53.4",
+    "cpu": "Apple M4",
+    "sqlite_journal_mode": "wal",
+    "sqlite_synchronous": 2,
+    "psycopg": "3.3.6",
+    "postgres": "17.11 (Debian 17.11-1.pgdg13+2)",
+    "postgres_fsync": "on",
+    "postgres_synchronous_commit": "on",
+    "postgres_max_connections": "100",
+    "postgres_shared_buffers": "128MB"
+  },
+  "traces_per_writer": 1000,
+  "spans_per_trace": 4,
+  "runs": 3,
+  "results": {
+    "sqlite": {
+      "1": {
+        "median_traces_per_second": 10707.02,
+        "median_p95_write_ms": 0.112,
+        "total_write_errors": 0,
+        "runs": [
+          {
+            "writers": 1,
+            "traces_attempted": 1000,
+            "traces_written": 1000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 0.092709,
+            "traces_per_second": 10786.45,
+            "p50_write_ms": 0.085,
+            "p95_write_ms": 0.11
+          },
+          {
+            "writers": 1,
+            "traces_attempted": 1000,
+            "traces_written": 1000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 0.094589,
+            "traces_per_second": 10572.1,
+            "p50_write_ms": 0.086,
+            "p95_write_ms": 0.112
+          },
+          {
+            "writers": 1,
+            "traces_attempted": 1000,
+            "traces_written": 1000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 0.093397,
+            "traces_per_second": 10707.02,
+            "p50_write_ms": 0.086,
+            "p95_write_ms": 0.115
+          }
+        ]
+      },
+      "4": {
+        "median_traces_per_second": 9130.56,
+        "median_p95_write_ms": 0.123,
+        "total_write_errors": 0,
+        "runs": [
+          {
+            "writers": 4,
+            "traces_attempted": 4000,
+            "traces_written": 4000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 0.549125,
+            "traces_per_second": 7284.32,
+            "p50_write_ms": 0.092,
+            "p95_write_ms": 0.144
+          },
+          {
+            "writers": 4,
+            "traces_attempted": 4000,
+            "traces_written": 4000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 0.42173,
+            "traces_per_second": 9484.75,
+            "p50_write_ms": 0.09,
+            "p95_write_ms": 0.116
+          },
+          {
+            "writers": 4,
+            "traces_attempted": 4000,
+            "traces_written": 4000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 0.438089,
+            "traces_per_second": 9130.56,
+            "p50_write_ms": 0.09,
+            "p95_write_ms": 0.123
+          }
+        ]
+      },
+      "8": {
+        "median_traces_per_second": 7816.63,
+        "median_p95_write_ms": 0.254,
+        "total_write_errors": 0,
+        "runs": [
+          {
+            "writers": 8,
+            "traces_attempted": 8000,
+            "traces_written": 8000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 1.02346,
+            "traces_per_second": 7816.63,
+            "p50_write_ms": 0.095,
+            "p95_write_ms": 0.254
+          },
+          {
+            "writers": 8,
+            "traces_attempted": 8000,
+            "traces_written": 8000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 1.213101,
+            "traces_per_second": 6594.67,
+            "p50_write_ms": 0.095,
+            "p95_write_ms": 0.316
+          },
+          {
+            "writers": 8,
+            "traces_attempted": 8000,
+            "traces_written": 8000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 1.010269,
+            "traces_per_second": 7918.68,
+            "p50_write_ms": 0.093,
+            "p95_write_ms": 0.126
+          }
+        ]
+      },
+      "16": {
+        "median_traces_per_second": 7484.12,
+        "median_p95_write_ms": 1.181,
+        "total_write_errors": 0,
+        "runs": [
+          {
+            "writers": 16,
+            "traces_attempted": 16000,
+            "traces_written": 16000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 2.415996,
+            "traces_per_second": 6622.53,
+            "p50_write_ms": 0.101,
+            "p95_write_ms": 1.393
+          },
+          {
+            "writers": 16,
+            "traces_attempted": 16000,
+            "traces_written": 16000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 2.13786,
+            "traces_per_second": 7484.12,
+            "p50_write_ms": 0.098,
+            "p95_write_ms": 1.181
+          },
+          {
+            "writers": 16,
+            "traces_attempted": 16000,
+            "traces_written": 16000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 2.074592,
+            "traces_per_second": 7712.36,
+            "p50_write_ms": 0.098,
+            "p95_write_ms": 0.787
+          }
+        ]
+      },
+      "32": {
+        "median_traces_per_second": 6968.78,
+        "median_p95_write_ms": 1.547,
+        "total_write_errors": 0,
+        "runs": [
+          {
+            "writers": 32,
+            "traces_attempted": 32000,
+            "traces_written": 32000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 4.452627,
+            "traces_per_second": 7186.77,
+            "p50_write_ms": 0.103,
+            "p95_write_ms": 1.631
+          },
+          {
+            "writers": 32,
+            "traces_attempted": 32000,
+            "traces_written": 32000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 4.591907,
+            "traces_per_second": 6968.78,
+            "p50_write_ms": 0.104,
+            "p95_write_ms": 1.481
+          },
+          {
+            "writers": 32,
+            "traces_attempted": 32000,
+            "traces_written": 32000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 4.693566,
+            "traces_per_second": 6817.84,
+            "p50_write_ms": 0.103,
+            "p95_write_ms": 1.547
+          }
+        ]
+      }
+    },
+    "postgres": {
+      "1": {
+        "median_traces_per_second": 874.59,
+        "median_p95_write_ms": 2.77,
+        "total_write_errors": 0,
+        "runs": [
+          {
+            "writers": 1,
+            "traces_attempted": 1000,
+            "traces_written": 1000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 1.126817,
+            "traces_per_second": 887.46,
+            "p50_write_ms": 0.752,
+            "p95_write_ms": 2.746
+          },
+          {
+            "writers": 1,
+            "traces_attempted": 1000,
+            "traces_written": 1000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 1.151492,
+            "traces_per_second": 868.44,
+            "p50_write_ms": 0.748,
+            "p95_write_ms": 2.77
+          },
+          {
+            "writers": 1,
+            "traces_attempted": 1000,
+            "traces_written": 1000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 1.143391,
+            "traces_per_second": 874.59,
+            "p50_write_ms": 0.718,
+            "p95_write_ms": 2.929
+          }
+        ]
+      },
+      "4": {
+        "median_traces_per_second": 2795.96,
+        "median_p95_write_ms": 2.562,
+        "total_write_errors": 0,
+        "runs": [
+          {
+            "writers": 4,
+            "traces_attempted": 4000,
+            "traces_written": 4000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 1.407451,
+            "traces_per_second": 2842.02,
+            "p50_write_ms": 1.199,
+            "p95_write_ms": 2.562
+          },
+          {
+            "writers": 4,
+            "traces_attempted": 4000,
+            "traces_written": 4000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 1.501312,
+            "traces_per_second": 2664.34,
+            "p50_write_ms": 1.295,
+            "p95_write_ms": 2.572
+          },
+          {
+            "writers": 4,
+            "traces_attempted": 4000,
+            "traces_written": 4000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 1.430635,
+            "traces_per_second": 2795.96,
+            "p50_write_ms": 1.222,
+            "p95_write_ms": 2.223
+          }
+        ]
+      },
+      "8": {
+        "median_traces_per_second": 3438.51,
+        "median_p95_write_ms": 3.192,
+        "total_write_errors": 0,
+        "runs": [
+          {
+            "writers": 8,
+            "traces_attempted": 8000,
+            "traces_written": 8000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 2.385888,
+            "traces_per_second": 3353.05,
+            "p50_write_ms": 2.139,
+            "p95_write_ms": 3.493
+          },
+          {
+            "writers": 8,
+            "traces_attempted": 8000,
+            "traces_written": 8000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 2.31481,
+            "traces_per_second": 3456.01,
+            "p50_write_ms": 2.165,
+            "p95_write_ms": 3.192
+          },
+          {
+            "writers": 8,
+            "traces_attempted": 8000,
+            "traces_written": 8000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 2.326586,
+            "traces_per_second": 3438.51,
+            "p50_write_ms": 2.159,
+            "p95_write_ms": 3.019
+          }
+        ]
+      },
+      "16": {
+        "median_traces_per_second": 2917.55,
+        "median_p95_write_ms": 9.26,
+        "total_write_errors": 0,
+        "runs": [
+          {
+            "writers": 16,
+            "traces_attempted": 16000,
+            "traces_written": 16000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 4.70309,
+            "traces_per_second": 3402.02,
+            "p50_write_ms": 4.114,
+            "p95_write_ms": 7.283
+          },
+          {
+            "writers": 16,
+            "traces_attempted": 16000,
+            "traces_written": 16000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 6.465041,
+            "traces_per_second": 2474.85,
+            "p50_write_ms": 5.417,
+            "p95_write_ms": 11.651
+          },
+          {
+            "writers": 16,
+            "traces_attempted": 16000,
+            "traces_written": 16000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 5.484045,
+            "traces_per_second": 2917.55,
+            "p50_write_ms": 4.841,
+            "p95_write_ms": 9.26
+          }
+        ]
+      },
+      "32": {
+        "median_traces_per_second": 3129.11,
+        "median_p95_write_ms": 17.064,
+        "total_write_errors": 0,
+        "runs": [
+          {
+            "writers": 32,
+            "traces_attempted": 32000,
+            "traces_written": 32000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 10.270013,
+            "traces_per_second": 3115.87,
+            "p50_write_ms": 9.143,
+            "p95_write_ms": 16.991
+          },
+          {
+            "writers": 32,
+            "traces_attempted": 32000,
+            "traces_written": 32000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 9.988196,
+            "traces_per_second": 3203.78,
+            "p50_write_ms": 8.37,
+            "p95_write_ms": 17.064
+          },
+          {
+            "writers": 32,
+            "traces_attempted": 32000,
+            "traces_written": 32000,
+            "write_errors": 0,
+            "error_samples": [],
+            "elapsed_seconds": 10.22656,
+            "traces_per_second": 3129.11,
+            "p50_write_ms": 9.1,
+            "p95_write_ms": 17.455
+          }
+        ]
+      }
+    }
+  }
+}

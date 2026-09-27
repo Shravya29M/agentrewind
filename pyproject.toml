@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "llm-run-recorder"
-version = "0.2.2"
+version = "0.3.0"
 description = "Flight recorder for LLM agents: trace every call, replay runs deterministically, diff runs to find where behavior diverged."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -22,6 +22,7 @@ dependencies = []
 
 [project.optional-dependencies]
 server = ["fastapi>=0.110", "uvicorn>=0.29"]
+postgres = ["psycopg[binary]>=3.1"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
@@ -30,6 +31,7 @@ dev = [
     "httpx>=0.27",
     "fastapi>=0.110",
     "uvicorn>=0.29",
+    "psycopg[binary]>=3.1",
 ]
 
 [project.scripts]
@@ -48,7 +50,8 @@ addopts = [
     "--cov-report=term-missing",
     "--cov-report=xml",
     "--cov-branch",
-    "--cov-fail-under=97",
+    # The 97% floor is enforced in CI only (see .github/workflows/ci.yml): without
+    # AGENTREWIND_DB_URL the PostgreSQL tests skip, leaving postgres.py uncovered.
 ]
 filterwarnings = [
     # Surface deprecations from this package as errors; third-party ones are
