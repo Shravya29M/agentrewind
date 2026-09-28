@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## 0.3.0 — not yet published
+## 0.3.0 — 2026-09-27
 - Optional PostgreSQL storage backend: `pip install 'llm-run-recorder[postgres]'` (psycopg 3),
   selected with `AGENTREWIND_DB_URL=postgresql://…` or a URL passed to `--db`,
   `configure(db_path=…)` or `open_store(…)`. The core remains stdlib-only and SQLite remains
