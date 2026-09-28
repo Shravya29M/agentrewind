@@ -302,11 +302,30 @@ class SQLiteStore(BaseStore):
             conn = sqlite3.connect(
                 str(self.path), timeout=self.BUSY_TIMEOUT, check_same_thread=False
             )
-            conn.execute("PRAGMA journal_mode=WAL")
+            self._enable_wal(conn)
             self._local.conn = conn
             with self._conns_lock:
                 self._all_conns.append(conn)
         return conn
+
+    def _enable_wal(self, conn: sqlite3.Connection) -> None:
+        """Switch to WAL, retrying while another process holds the file.
+
+        Converting a rollback-journal file (a brand-new db, or one copied without its WAL)
+        needs an exclusive lock, and SQLite reports SQLITE_BUSY for it immediately instead
+        of waiting out the busy timeout, so concurrent first opens must retry by hand.
+        """
+        deadline = time.monotonic() + self.BUSY_TIMEOUT
+        delay = 0.005
+        while True:
+            try:
+                conn.execute("PRAGMA journal_mode=WAL")
+                return
+            except sqlite3.OperationalError as exc:
+                if "locked" not in str(exc) or time.monotonic() >= deadline:
+                    raise
+            time.sleep(delay)
+            delay = min(delay * 2, 0.1)
 
     @staticmethod
     def _migrate(conn: sqlite3.Connection) -> None:

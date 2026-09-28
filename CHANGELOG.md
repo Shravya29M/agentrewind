@@ -11,7 +11,9 @@
   `TraceStore` is still accepted and is an alias for `SQLiteStore`.
 - Safe for many concurrent writer processes on PostgreSQL: a row lock serialises writes to the
   same trace, schema creation takes an advisory lock, and connections are never reused
-  across `fork()`. SQLite writers now wait up to 30 s for the write lock (previously 5 s).
+  across `fork()`. SQLite writers now wait up to 30 s for the write lock (previously 5 s), and
+  processes opening the same new or rollback-journal file at once retry the switch to WAL mode
+  instead of failing with `database is locked`.
 - Deterministic ordering on both backends: new `spans.seq` column so spans with identical
   timestamps return in execution order; trace-list ties broken by id.
 - `get_trace` prefix lookup: an exact id match now always wins, an ambiguous prefix resolves

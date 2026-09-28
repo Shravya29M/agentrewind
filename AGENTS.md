@@ -50,9 +50,9 @@ do not estimate these.
 | Latest published version | 0.2.2 (uploaded 2026-07-12) | same; `info.version` |
 | Version in this repo | 0.3.0 — **not published** | `pyproject.toml` `version` |
 | Published releases | 0.2.0, 0.2.1, 0.2.2 (wheel + sdist each) | same; `releases` |
-| Test count | 280 (140 per backend); 138 pass + 142 skip without `AGENTREWIND_DB_URL` | `pytest --collect-only -q` with `AGENTREWIND_DB_URL` set |
-| Line coverage | 99% (740 statements, 1 missed) | `pytest --cov=src/agentrewind --cov-report=term -o addopts=""` with PG |
-| Branch + line coverage | 99.55% with PG; 95% SQLite-only | `pytest` (branch mode is the default in pyproject) |
+| Test count | 290 (145 per backend); 143 pass + 147 skip without `AGENTREWIND_DB_URL` | `pytest --collect-only -q` with `AGENTREWIND_DB_URL` set |
+| Line coverage | 99% (752 statements, 1 missed) | `pytest --cov=src/agentrewind --cov-report=term -o addopts=""` with PG |
+| Branch + line coverage | 99.56% with PG | `pytest` (branch mode is the default in pyproject) |
 | Coverage floor | 97%, **CI only** | `.github/workflows/ci.yml:47` (`--cov-fail-under=97`) |
 | CI Python matrix | 3.10, 3.12, 3.13 (**not** 3.11) | `.github/workflows/ci.yml:17` |
 | Concurrency level in record→replay test | 12 concurrent runs, 2 LLM calls each | `tests/test_concurrency.py:15` (`N_RUNS = 12`), test at `:249` |

@@ -170,7 +170,7 @@ export AGENTREWIND_DB_URL=postgresql://agentrewind:agentrewind@localhost:55432/a
 pytest --cov-fail-under=97
 ```
 
-**280 tests (140 per backend), 99.55% branch coverage** with PostgreSQL available. CI runs the full suite
+**290 tests (145 per backend), 99.56% branch coverage** with PostgreSQL available. CI runs the full suite
 against a PostgreSQL 17 service container on Python 3.10, 3.12 and 3.13, and enforces the 97%
 coverage floor. The floor is CI-only because a local run without PostgreSQL leaves the
 backend's module uncovered.

@@ -224,23 +224,71 @@ def test_a_failed_migration_rolls_back(legacy_db, monkeypatch):
     assert "seq" not in _span_columns(legacy_db)
 
 
-def _open_and_count(path, n_traces_seen):
+def _open_and_count(path, barrier, n_traces_seen):
+    barrier.wait()
     s = SQLiteStore(path)
     n_traces_seen.put(len(s.list_traces()))
     s.close()
 
 
-def test_concurrent_processes_can_migrate_the_same_file(legacy_db):
+@pytest.mark.parametrize("trial", range(3))
+def test_concurrent_processes_can_migrate_the_same_file(legacy_db, trial):
+    # The fixture is in rollback-journal mode, so every opener races to switch it to WAL
+    # and to add seq. A barrier lines the processes up to maximise the contention.
+    n = 12
     ctx = multiprocessing.get_context("spawn")
-    seen = ctx.Queue()
-    procs = [ctx.Process(target=_open_and_count, args=(legacy_db, seen)) for _ in range(6)]
+    barrier, seen = ctx.Barrier(n), ctx.Queue()
+    procs = [
+        ctx.Process(target=_open_and_count, args=(legacy_db, barrier, seen)) for _ in range(n)
+    ]
     for p in procs:
         p.start()
     for p in procs:
         p.join(60)
-    assert [p.exitcode for p in procs] == [0] * 6
-    assert sorted(seen.get(timeout=5) for _ in procs) == [1] * 6
+    assert [p.exitcode for p in procs] == [0] * n
+    assert sorted(seen.get(timeout=5) for _ in procs) == [1] * n
     assert _span_columns(legacy_db).count("seq") == 1
+
+
+class _FlakyWal:
+    """Connection stand-in whose WAL switch fails with the given errors, then succeeds."""
+
+    def __init__(self, *errors):
+        self.errors, self.attempts = list(errors), 0
+
+    def execute(self, sql):
+        assert sql == "PRAGMA journal_mode=WAL"
+        self.attempts += 1
+        if self.errors:
+            raise self.errors.pop(0)
+
+
+def test_wal_switch_retries_while_the_file_is_locked(tmp_path):
+    s = SQLiteStore(tmp_path / "wal.db")
+    locked = sqlite3.OperationalError("database is locked")
+    conn = _FlakyWal(locked, locked)
+    s._enable_wal(conn)
+    assert conn.attempts == 3
+    s.close()
+
+
+def test_wal_switch_does_not_retry_other_errors(tmp_path):
+    s = SQLiteStore(tmp_path / "wal.db")
+    conn = _FlakyWal(sqlite3.OperationalError("disk I/O error"))
+    with pytest.raises(sqlite3.OperationalError, match="disk I/O"):
+        s._enable_wal(conn)
+    assert conn.attempts == 1
+    s.close()
+
+
+def test_wal_switch_gives_up_after_the_busy_timeout(tmp_path, monkeypatch):
+    s = SQLiteStore(tmp_path / "wal.db")
+    monkeypatch.setattr(s, "BUSY_TIMEOUT", 0.0)
+    conn = _FlakyWal(*[sqlite3.OperationalError("database is locked")] * 5)
+    with pytest.raises(sqlite3.OperationalError, match="locked"):
+        s._enable_wal(conn)
+    assert conn.attempts == 1
+    s.close()
 
 
 # --------------------------------------------------------------------------
