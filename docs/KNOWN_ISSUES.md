@@ -12,24 +12,9 @@ Last reviewed: 2026-09-27 (v0.3.0).
 
 | ID | Severity | Since | Summary |
 |---|---|---|---|
-| KI-5 | Medium | 0.1.0 | An in-memory SQLite store only works on the thread that created it |
 | KI-6 | Low | 0.3.0 | A case-insensitive ID lookup with non-ASCII characters can match on PostgreSQL but not on SQLite |
 | KI-7 | Low | — | An editable install can fail to put `src/` on `sys.path` |
 | KI-8 | Low | — | Test runs show third-party deprecation warnings |
-
-### KI-5: an in-memory SQLite store only works on the thread that created it
-- **Status:** open, confirmed 2026-09-27
-- **Symptom:** `SQLiteStore(":memory:")` works on the thread that created it. Every other
-  thread raises `sqlite3.OperationalError: no such table: traces`.
-- **Cause:** `SQLiteStore` opens one connection per thread, and each `:memory:` connection is
-  a separate empty database. Only the first thread's database gets the schema.
-- **Impact:** in-memory stores are unusable from threads, including `agentrewind serve`,
-  which answers requests on worker threads. File-backed SQLite and PostgreSQL are not
-  affected.
-- **Repro:** create `SQLiteStore(":memory:")`, save a trace, then call `list_traces()` from a
-  `threading.Thread`.
-- **Fix options:** share one connection per store when the path is `:memory:`, guarded by a
-  lock; or use a named shared-cache URI (`file:<name>?mode=memory&cache=shared`).
 
 ### KI-6: a case-insensitive ID lookup with non-ASCII characters can match on PostgreSQL but not on SQLite
 - **Status:** open, known difference between the backends
@@ -70,6 +55,7 @@ These are working as intended, and they are documented for users.
 
 | ID | Summary | Fixed in | Release |
 |---|---|---|---|
+| KI-5 | An in-memory SQLite store (`SQLiteStore(":memory:")`) only worked on the thread that created it; other threads, including the web viewer's, got `no such table: traces`. Present since 0.1.0. In-memory stores now share one locked connection | `6dc0657` | unreleased (after 0.3.0) |
 | KI-1 | Several processes opening the same new or 0.2.x SQLite file at once could fail with `database is locked`. Switching to WAL mode ignores the busy timeout. CI caught it; it reproduced locally in 29 of 240 simultaneous opens | `c0b2577` | 0.3.0 |
 | KI-2 | `agentrewind serve` without the server extra suggested `pip install 'agentrewind[server]'`, the wrong package name | `f90292f` | 0.3.0 |
 | KI-3 | The migration fixture `tests/fixtures/traces_v0_2_2.db` matched the `*.db` gitignore rule and would never have been committed | `f90292f` | 0.3.0 |
