@@ -47,9 +47,8 @@ do not estimate these.
 | Metric | Value | How to re-derive |
 |---|---|---|
 | PyPI package | `llm-run-recorder` | `curl -s https://pypi.org/pypi/llm-run-recorder/json` |
-| Latest published version | 0.2.2 (uploaded 2026-07-12) | same; `info.version` |
-| Version in this repo | 0.3.0 — **not published** | `pyproject.toml` `version` |
-| Published releases | 0.2.0, 0.2.1, 0.2.2 (wheel + sdist each) | same; `releases` |
+| Latest published version | 0.3.0 (uploaded 2026-09-28 UTC, tag `v0.3.0`) | same; `info.version` |
+| Published releases | 0.2.0, 0.2.1, 0.2.2, 0.3.0 (wheel + sdist each) | same; `releases` |
 | Test count | 290 (145 per backend); 143 pass + 147 skip without `AGENTREWIND_DB_URL` | `pytest --collect-only -q` with `AGENTREWIND_DB_URL` set |
 | Line coverage | 99% (752 statements, 1 missed) | `pytest --cov=src/agentrewind --cov-report=term -o addopts=""` with PG |
 | Branch + line coverage | 99.56% with PG | `pytest` (branch mode is the default in pyproject) |
