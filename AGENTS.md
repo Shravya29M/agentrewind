@@ -97,6 +97,13 @@ at 100%; `store.py` 99%, `sdk.py` 99%, `replay.py` 98%.
 `python -m build` plus `twine check`, across the three-version matrix. Coverage
 XML is uploaded as an artifact from the 3.13 leg.
 
+## Known issues
+
+`docs/KNOWN_ISSUES.md` tracks open bugs, deliberate limitations and resolved issues with IDs
+(`KI-n`). Read it before starting work. When you find a bug, add it under Open with repro
+steps, even if you fix it in the same change. When you fix one, move it to Resolved with the
+commit and release.
+
 ## Gotchas
 
 - **Editable installs can silently fail to put `src/` on `sys.path`** on some local setups (the
