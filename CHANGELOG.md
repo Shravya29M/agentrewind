@@ -1,10 +1,15 @@
 # Changelog
 
 ## Unreleased
+
+## 0.3.1 — 2026-09-27
 - Fix: a `SQLiteStore(":memory:")` store now works from every thread, including the web
   viewer's worker threads. Previously each thread saw its own empty database and failed with
   `no such table: traces` (KI-5). In-memory stores now share one connection guarded by a
   lock; file-backed stores are unchanged.
+- Note: `close()` on an in-memory store discards all of its data. The store cannot be used
+  again afterwards: a later call fails with `no such table`. A file-backed store simply
+  reconnects on its next use.
 
 ## 0.3.0 — 2026-09-27
 - Optional PostgreSQL storage backend: `pip install 'llm-run-recorder[postgres]'` (psycopg 3),

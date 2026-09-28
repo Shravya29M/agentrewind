@@ -6,7 +6,7 @@ that have been reproduced or confirmed in the code, and give the steps to reprod
 **Updating:** add new issues under **Open** with the next free ID. When an issue is fixed,
 move it to **Resolved** with the commit and release that fixed it. Never renumber IDs.
 
-Last reviewed: 2026-09-27 (v0.3.0).
+Last reviewed: 2026-09-27 (v0.3.1).
 
 ## Open
 
@@ -48,6 +48,7 @@ These are working as intended, and they are documented for users.
 |---|---|
 | The 0.2.x → 0.3.0 SQLite migration is one-way: 0.2.x cannot write to a migrated file | CHANGELOG, README, v0.3.0 release notes |
 | On one machine, PostgreSQL wrote slower than SQLite in the benchmark (0.45× at 32 writers); the backend is for sharing traces, not speed | `docs/EVALUATION.md` |
+| `close()` on an in-memory SQLite store discards all its data, and the store cannot be used afterwards (a file-backed store reconnects) | CHANGELOG 0.3.1, `SQLiteStore` docstring |
 | `configure()` does not close the store it replaces, because a `Recorder` may still hold it | `sdk.configure` |
 | `spans.trace_id` has no enforced foreign key on either backend, to match SQLite's default | `docs/ARCHITECTURE.md` |
 
@@ -55,7 +56,7 @@ These are working as intended, and they are documented for users.
 
 | ID | Summary | Fixed in | Release |
 |---|---|---|---|
-| KI-5 | An in-memory SQLite store (`SQLiteStore(":memory:")`) only worked on the thread that created it; other threads, including the web viewer's, got `no such table: traces`. Present since 0.1.0. In-memory stores now share one locked connection | `6dc0657` | unreleased (after 0.3.0) |
+| KI-5 | An in-memory SQLite store (`SQLiteStore(":memory:")`) only worked on the thread that created it; other threads, including the web viewer's, got `no such table: traces`. Present since 0.1.0. In-memory stores now share one locked connection | `6dc0657` | 0.3.1 |
 | KI-1 | Several processes opening the same new or 0.2.x SQLite file at once could fail with `database is locked`. Switching to WAL mode ignores the busy timeout. CI caught it; it reproduced locally in 29 of 240 simultaneous opens | `c0b2577` | 0.3.0 |
 | KI-2 | `agentrewind serve` without the server extra suggested `pip install 'agentrewind[server]'`, the wrong package name | `f90292f` | 0.3.0 |
 | KI-3 | The migration fixture `tests/fixtures/traces_v0_2_2.db` matched the `*.db` gitignore rule and would never have been committed | `f90292f` | 0.3.0 |

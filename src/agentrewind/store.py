@@ -278,7 +278,8 @@ class SQLiteStore(BaseStore):
 
     ``":memory:"`` is the exception: every connection to it would be a separate, empty
     database, so an in-memory store keeps a single connection that all threads share, and
-    serialises access to it with a lock.
+    serialises access to it with a lock. Its data lives only in that connection, so
+    :meth:`close` discards it and the store cannot be used afterwards.
     """
 
     # Seconds a writer waits on another process's lock before raising "database is locked".

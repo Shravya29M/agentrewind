@@ -17,7 +17,7 @@ from .sdk import (
 )
 from .store import BaseStore, SQLiteStore, TraceStore, open_store
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 __all__ = [
     "AnthropicMessages",
