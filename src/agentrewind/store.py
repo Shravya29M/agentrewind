@@ -14,6 +14,8 @@ import sqlite3
 import threading
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
+from contextlib import contextmanager, nullcontext
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -272,7 +274,12 @@ def _trace_from_row(row: tuple) -> Trace:
 
 
 class SQLiteStore(BaseStore):
-    """Zero-config default backend: one SQLite file in WAL mode, one connection per thread."""
+    """Zero-config default backend: one SQLite file in WAL mode, one connection per thread.
+
+    ``":memory:"`` is the exception: every connection to it would be a separate, empty
+    database, so an in-memory store keeps a single connection that all threads share, and
+    serialises access to it with a lock.
+    """
 
     # Seconds a writer waits on another process's lock before raising "database is locked".
     BUSY_TIMEOUT = 30.0
@@ -282,30 +289,46 @@ class SQLiteStore(BaseStore):
     ):
         self.path = Path(path).expanduser() if path else DEFAULT_DB
         self.redaction = redaction
-        if str(self.path) != ":memory:":
+        self._memory = str(self.path) == ":memory:"
+        if not self._memory:
             self.path.parent.mkdir(parents=True, exist_ok=True)
         self._local = threading.local()
         self._all_conns: list[sqlite3.Connection] = []
         self._conns_lock = threading.Lock()
-        conn = self._conn()
-        conn.executescript(_SQLITE_SCHEMA)
-        self._migrate(conn)
+        self._memory_conn: sqlite3.Connection | None = None
+        # File databases need no lock: each thread has its own connection and SQLite
+        # arbitrates between them. The shared in-memory connection must be serialised.
+        self._use_lock = threading.RLock() if self._memory else nullcontext()
+        with self._use() as conn:
+            conn.executescript(_SQLITE_SCHEMA)
+            self._migrate(conn)
 
     def __repr__(self) -> str:
         return f"SQLiteStore({str(self.path)!r})"
 
+    @contextmanager
+    def _use(self) -> Iterator[sqlite3.Connection]:
+        """Yield this thread's connection, holding the lock for an in-memory store."""
+        with self._use_lock:
+            yield self._conn()
+
     def _conn(self) -> sqlite3.Connection:
+        if self._memory:
+            if self._memory_conn is None:
+                self._memory_conn = self._open()
+            return self._memory_conn
         conn = getattr(self._local, "conn", None)
         if conn is None:
-            # Each connection is only used by its own thread; check_same_thread=False just
-            # lets close() release every thread's connection from the calling thread.
-            conn = sqlite3.connect(
-                str(self.path), timeout=self.BUSY_TIMEOUT, check_same_thread=False
-            )
-            self._enable_wal(conn)
-            self._local.conn = conn
-            with self._conns_lock:
-                self._all_conns.append(conn)
+            conn = self._local.conn = self._open()
+        return conn
+
+    def _open(self) -> sqlite3.Connection:
+        # check_same_thread=False lets close() release every thread's connection from the
+        # calling thread, and lets threads share the in-memory connection under _use_lock.
+        conn = sqlite3.connect(str(self.path), timeout=self.BUSY_TIMEOUT, check_same_thread=False)
+        self._enable_wal(conn)
+        with self._conns_lock:
+            self._all_conns.append(conn)
         return conn
 
     def _enable_wal(self, conn: sqlite3.Connection) -> None:
@@ -356,10 +379,10 @@ class SQLiteStore(BaseStore):
         for conn in conns:
             conn.close()
         self._local = threading.local()
+        self._memory_conn = None
 
     def _write_trace(self, trace_row: tuple, span_rows: list[tuple]) -> None:
-        conn = self._conn()
-        with conn:
+        with self._use() as conn, conn:
             conn.execute(
                 f"INSERT OR REPLACE INTO traces ({TRACE_COLUMNS}) VALUES (?,?,?,?,?,?)",
                 trace_row,
@@ -371,39 +394,43 @@ class SQLiteStore(BaseStore):
             )
 
     def _find_trace_row(self, trace_id: str) -> tuple | None:
-        conn = self._conn()
-        row = conn.execute(
-            f"SELECT {TRACE_COLUMNS} FROM traces WHERE trace_id = ?", (trace_id,)
-        ).fetchone()
-        if row is not None:
-            return row
-        return conn.execute(
-            f"SELECT {TRACE_COLUMNS} FROM traces "
-            "WHERE lower(substr(trace_id, 1, length(?))) = lower(?) "
-            "ORDER BY trace_id LIMIT 1",
-            (trace_id, trace_id),
-        ).fetchone()
+        with self._use() as conn:
+            row = conn.execute(
+                f"SELECT {TRACE_COLUMNS} FROM traces WHERE trace_id = ?", (trace_id,)
+            ).fetchone()
+            if row is not None:
+                return row
+            return conn.execute(
+                f"SELECT {TRACE_COLUMNS} FROM traces "
+                "WHERE lower(substr(trace_id, 1, length(?))) = lower(?) "
+                "ORDER BY trace_id LIMIT 1",
+                (trace_id, trace_id),
+            ).fetchone()
 
     def _span_rows(self, trace_id: str) -> list[tuple]:
-        return self._conn().execute(
-            f"SELECT {SPAN_COLUMNS} FROM spans WHERE trace_id = ? ORDER BY {SPAN_ORDER}",
-            (trace_id,),
-        ).fetchall()
+        with self._use() as conn:
+            return conn.execute(
+                f"SELECT {SPAN_COLUMNS} FROM spans WHERE trace_id = ? ORDER BY {SPAN_ORDER}",
+                (trace_id,),
+            ).fetchall()
 
     def _trace_rows(self, limit: int) -> list[tuple]:
-        return self._conn().execute(
-            f"SELECT {TRACE_COLUMNS} FROM traces ORDER BY started_at DESC, trace_id LIMIT ?",
-            (limit,),
-        ).fetchall()
+        with self._use() as conn:
+            return conn.execute(
+                f"SELECT {TRACE_COLUMNS} FROM traces "
+                "ORDER BY started_at DESC, trace_id LIMIT ?",
+                (limit,),
+            ).fetchall()
 
     def _cache_write(self, row: tuple) -> None:
-        with self._conn() as conn:
+        with self._use() as conn, conn:
             conn.execute("INSERT OR REPLACE INTO llm_cache VALUES (?,?,?,?)", row)
 
     def _cache_read(self, fingerprint: str) -> str | None:
-        row = self._conn().execute(
-            "SELECT response FROM llm_cache WHERE fingerprint = ?", (fingerprint,)
-        ).fetchone()
+        with self._use() as conn:
+            row = conn.execute(
+                "SELECT response FROM llm_cache WHERE fingerprint = ?", (fingerprint,)
+            ).fetchone()
         return row[0] if row else None
 
 

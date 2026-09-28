@@ -4,6 +4,7 @@ and PostgreSQL, the 0.2.x → 0.3 SQLite migration, and multi-process write safe
 import multiprocessing
 import shutil
 import sqlite3
+import threading
 from pathlib import Path
 
 import pytest
@@ -473,3 +474,65 @@ def test_a_forked_child_opens_its_own_connection(pg_store):
     pg_store.close()
     assert child_conn.closed and not parent_conn.closed
     parent_conn.close()
+
+
+# --------------------------------------------------------------------------
+# in-memory SQLite across threads (KI-5)
+# --------------------------------------------------------------------------
+
+
+def test_an_in_memory_store_is_visible_from_other_threads():
+    s = SQLiteStore(":memory:")
+    s.save_trace(tied_trace(n=2))
+    seen = {}
+
+    def reader():
+        seen["ids"] = [t.trace_id for t in s.list_traces()]
+        seen["spans"] = len(s.get_trace("tied0000").spans)
+
+    t = threading.Thread(target=reader)
+    t.start()
+    t.join()
+    assert seen == {"ids": ["tied0000"], "spans": 2}
+    s.close()
+
+
+def test_threads_share_one_in_memory_store_safely():
+    s = SQLiteStore(":memory:")
+    errors = []
+
+    def worker(w):
+        try:
+            for i in range(25):
+                s.save_trace(tied_trace(trace_id=f"m{w}-{i:02d}", n=3, t=float(i)))
+                s.cache_put(f"fp{w}-{i}", {"w": w}, {"i": i})
+                assert len(s.get_trace(f"m{w}-{i:02d}").spans) == 3
+                assert s.cache_get(f"fp{w}-{i}") == {"i": i}
+        except Exception as exc:  # surfaced below; a thread's exception is otherwise lost
+            errors.append(exc)
+
+    threads = [threading.Thread(target=worker, args=(w,)) for w in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert errors == []
+    traces = s.list_traces(limit=1000)
+    assert len(traces) == 200
+    for t in traces:
+        assert [sp.name for sp in s.get_trace(t.trace_id).spans] == ["step0", "step1", "step2"]
+    s.close()
+
+
+def test_the_viewer_serves_an_in_memory_store():
+    from fastapi.testclient import TestClient
+
+    from agentrewind.server import create_app
+
+    s = SQLiteStore(":memory:")
+    al.configure(store=s)
+    s.save_trace(tied_trace(n=2))
+    with TestClient(create_app()) as client:  # handlers run on a worker thread
+        assert [t["trace_id"] for t in client.get("/api/traces").json()] == ["tied0000"]
+        assert client.get("/api/traces/tied0000").status_code == 200
+    s.close()

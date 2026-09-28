@@ -49,9 +49,9 @@ do not estimate these.
 | PyPI package | `llm-run-recorder` | `curl -s https://pypi.org/pypi/llm-run-recorder/json` |
 | Latest published version | 0.3.0 (uploaded 2026-09-28 UTC, tag `v0.3.0`) | same; `info.version` |
 | Published releases | 0.2.0, 0.2.1, 0.2.2, 0.3.0 (wheel + sdist each) | same; `releases` |
-| Test count | 290 (145 per backend); 143 pass + 147 skip without `AGENTREWIND_DB_URL` | `pytest --collect-only -q` with `AGENTREWIND_DB_URL` set |
-| Line coverage | 99% (752 statements, 1 missed) | `pytest --cov=src/agentrewind --cov-report=term -o addopts=""` with PG |
-| Branch + line coverage | 99.56% with PG | `pytest` (branch mode is the default in pyproject) |
+| Test count | 296 (148 per backend); 146 pass + 150 skip without `AGENTREWIND_DB_URL` | `pytest --collect-only -q` with `AGENTREWIND_DB_URL` set |
+| Line coverage | 99% (770 statements, 1 missed) | `pytest --cov=src/agentrewind --cov-report=term -o addopts=""` with PG |
+| Branch + line coverage | 99.57% with PG | `pytest` (branch mode is the default in pyproject) |
 | Coverage floor | 97%, **CI only** | `.github/workflows/ci.yml:47` (`--cov-fail-under=97`) |
 | CI Python matrix | 3.10, 3.12, 3.13 (**not** 3.11) | `.github/workflows/ci.yml:17` |
 | Concurrency level in record→replay test | 12 concurrent runs, 2 LLM calls each | `tests/test_concurrency.py:15` (`N_RUNS = 12`), test at `:249` |
