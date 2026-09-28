@@ -22,6 +22,7 @@ src/agentrewind/
   server.py      single-file HTML trace viewer
 benchmarks/replay_benchmark.py   offline throughput + zero-provider-call proof
 benchmarks/storage_benchmark.py  1–32 concurrent writer processes, SQLite vs PostgreSQL
+benchmarks/live_replay_benchmark.py  real OpenAI agent (50 calls): live vs replay wall-clock
 docs/EVALUATION.md               benchmark protocol and reference results
 tests/fixtures/traces_v0_2_2.db  written by the published 0.2.2 wheel; migration tests
 ```
@@ -73,6 +74,14 @@ Throughput, Apple M4 / macOS 15.7.4 / Python 3.13.5 / `--calls 1000`, 3-run medi
 (`docs/EVALUATION.md:28-33`, measured 2026-07-15): record **8027.01 req/s**, replay
 **62345.43 req/s** — replay ~7.8x faster. A 2026-09-21 spot check gave 8324.57 / 61629.64.
 Do not compare throughput across machines.
+
+### Live run vs replay (real OpenAI API)
+
+`benchmarks/live_replay_benchmark.py`, 2026-09-27, `gpt-4.1-mini-2025-04-14`, llm-run-recorder
+0.3.1 from PyPI, Apple M4 / Python 3.13.5, 3 runs: **50** LLM calls per live run, **0** on
+replay. Median live **52.7756 s**, median replay **0.0055 s** (about 9,600×). Replayed
+answers were identical in all 3 runs. Raw JSON: `docs/benchmarks/live-replay-2026-09-27-apple-m4.json`.
+Live time is provider latency and varies; each run costs about 50 real API calls.
 
 ### Concurrent writers (storage benchmark)
 

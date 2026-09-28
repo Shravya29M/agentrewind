@@ -35,6 +35,52 @@ Machine: Apple M4, macOS 15.7.4, Python 3.13.5, `--calls 1000`.
 Replay served cached responses ~7.8x faster than the initial recorded run and made zero
 provider calls, so replaying a traced agent run costs nothing in API usage.
 
+## Live run vs replay with a real provider
+
+The offline benchmark above uses a stub provider. `benchmarks/live_replay_benchmark.py`
+measures replay against a **real** LLM API instead. A small research agent answers 10
+questions, and each question takes exactly 5 real LLM calls:
+
+1. plan the approach
+2. choose a tool through OpenAI function calling (a calculator or a local fact lookup, which
+   then runs locally)
+3. draft an answer
+4. critique the draft
+5. write the final answer
+
+That makes 50 LLM calls per run. Each run records the live agent run into a fresh SQLite
+file, reopens the store from disk, and replays the same agent. During replay the provider
+function raises if it is called, so zero provider calls is enforced rather than assumed. Both
+timings are wall-clock for the whole agent run, including tool calls and saving the trace.
+
+```bash
+pip install openai && export OPENAI_API_KEY=...
+python benchmarks/live_replay_benchmark.py --runs 3 --output live.json   # ~150 real API calls
+```
+
+### Reference results
+
+Measured 2026-09-27. Apple M4, macOS 15.7.4, Python 3.13.5, llm-run-recorder 0.3.1 (the
+PyPI release installed in a clean venv), openai 3.19.2, model `gpt-4.1-mini-2025-04-14`,
+`temperature=0`. Raw JSON:
+[`benchmarks/live-replay-2026-09-27-apple-m4.json`](benchmarks/live-replay-2026-09-27-apple-m4.json).
+
+| | Run 1 | Run 2 | Run 3 | Median |
+|---|---:|---:|---:|---:|
+| LLM calls, live run | 50 | 50 | 50 | — |
+| LLM calls, replay | 0 | 0 | 0 | — |
+| Live run, seconds | 56.0335 | 52.7756 | 50.9681 | **52.7756** |
+| Replay, seconds | 0.0056 | 0.0055 | 0.0042 | **0.0055** |
+| Replayed answers identical to live | true | true | true | — |
+
+On these medians, replaying the 50-call run took 0.0055 s instead of 52.78 s, about 9,600×
+faster, with no API usage.
+
+Almost all of the live time is network and model latency: about 1.06 s per call in the
+median run. It varies with provider load, the model, prompt size and output length, so the
+ratio is a property of this workload and this day, not a constant of AgentRewind. Replay time
+is local store reads plus writing the replay's trace, about 0.1 ms per call here.
+
 ## Concurrent writers: SQLite vs PostgreSQL
 
 The PostgreSQL backend exists to give many machines one **shared** trace store that any

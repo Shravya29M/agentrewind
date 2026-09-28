@@ -202,6 +202,10 @@ calls; it also reports local recording and replay throughput:
 python benchmarks/replay_benchmark.py --calls 1000
 ```
 
+With a real provider, replaying a 50-call agent run took a median 0.0055 s against 52.78 s
+live, with zero API calls (`benchmarks/live_replay_benchmark.py`, needs `OPENAI_API_KEY`).
+See [EVALUATION.md](docs/EVALUATION.md#live-run-vs-replay-with-a-real-provider).
+
 A second benchmark measures 1, 4, 8, 16 and 32 concurrent writer processes on each storage
 backend (traces/sec and p95 write latency):
 

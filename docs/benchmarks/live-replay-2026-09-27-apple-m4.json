@@ -1,0 +1,41 @@
+{
+  "environment": {
+    "platform": "macOS-15.7.4-arm64-arm-64bit-Mach-O",
+    "python": "3.13.5",
+    "agentrewind": "0.3.1",
+    "openai": "3.19.2",
+    "model": "gpt-4.1-mini-2025-04-14",
+    "store": "SQLite file (default backend)"
+  },
+  "median_live_seconds": 52.7756,
+  "median_replay_seconds": 0.0055,
+  "runs": [
+    {
+      "llm_calls_live": 50,
+      "llm_calls_replay": 0,
+      "live_seconds": 56.0335,
+      "replay_seconds": 0.0056,
+      "speedup": 9933.3,
+      "replay_matches_live": true,
+      "traces_in_store": 2
+    },
+    {
+      "llm_calls_live": 50,
+      "llm_calls_replay": 0,
+      "live_seconds": 52.7756,
+      "replay_seconds": 0.0055,
+      "speedup": 9554.6,
+      "replay_matches_live": true,
+      "traces_in_store": 2
+    },
+    {
+      "llm_calls_live": 50,
+      "llm_calls_replay": 0,
+      "live_seconds": 50.9681,
+      "replay_seconds": 0.0042,
+      "speedup": 12211.7,
+      "replay_matches_live": true,
+      "traces_in_store": 2
+    }
+  ]
+}
